@@ -1,5 +1,6 @@
 Forklaring av databasedesignet for sosial media-plattformen
 Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
+
 Hovedelementer i systemet
 	1	Brukere (BRUKERE): Dette er fundamentet i plattformen. Hver bruker har en unik ID, brukernavn, epost, passord (lagret som hash av sikkerhetshensyn), profilbilde, bio, registreringsdato, fødselsdato og status. Dette er all informasjon som trengs for å administrere brukere.
 	2	Innlegg (INNLEGG): Brukere oppretter innlegg med innhold, og systemet registrerer når innlegget ble opprettet og sist oppdatert. Innlegg kan ha forskjellig synlighet (offentlig/privat) og er alltid knyttet til en spesifikk bruker via bruker_id.
@@ -9,6 +10,7 @@ Hovedelementer i systemet
 	6	Meldinger (MELDINGER): Private meldinger mellom brukere. Inneholder selve meldingsteksten, tidspunkt for sending og lesing, og referanser til både avsender og mottaker.
 	7	Tagger (TAGGER): Kategorier eller emneknagger som kan knyttes til innlegg.
 	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
+
 Relasjonene i systemet
 Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
 	•	En bruker kan opprette mange innlegg (1 )
@@ -18,6 +20,7 @@ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er ko
 	•	En bruker kan følge mange brukere, og en bruker kan ha mange følgere (mange gjennom FØLGER-tabellen)
 	•	En bruker kan sende/motta mange meldinger (1 )
 	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
+
 Normaliseringen
 Designet er normalisert til tredje normalform (3NF), noe som betyr:
 	1	Det eliminerer duplisering av data
@@ -27,6 +30,7 @@ For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen
 Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
 Forklaring av databasedesignet for sosial media-plattformen
 Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
+
 Hovedelementer i systemet
 	1	Brukere (BRUKERE): Dette er fundamentet i plattformen. Hver bruker har en unik ID, brukernavn, epost, passord (lagret som hash av sikkerhetshensyn), profilbilde, bio, registreringsdato, fødselsdato og status. Dette er all informasjon som trengs for å administrere brukere.
 	2	Innlegg (INNLEGG): Brukere oppretter innlegg med innhold, og systemet registrerer når innlegget ble opprettet og sist oppdatert. Innlegg kan ha forskjellig synlighet (offentlig/privat) og er alltid knyttet til en spesifikk bruker via bruker_id.
@@ -36,6 +40,7 @@ Hovedelementer i systemet
 	6	Meldinger (MELDINGER): Private meldinger mellom brukere. Inneholder selve meldingsteksten, tidspunkt for sending og lesing, og referanser til både avsender og mottaker.
 	7	Tagger (TAGGER): Kategorier eller emneknagger som kan knyttes til innlegg.
 	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
+
 Relasjonene i systemet
 Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
 	•	En bruker kan opprette mange innlegg (1 )
@@ -45,6 +50,7 @@ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er ko
 	•	En bruker kan følge mange brukere, og en bruker kan ha mange følgere (mange gjennom FØLGER-tabellen)
 	•	En bruker kan sende/motta mange meldinger (1 )
 	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
+
 Normaliseringen
 Designet er normalisert til tredje normalform (3NF), noe som betyr:
 	1	Det eliminerer duplisering av data
