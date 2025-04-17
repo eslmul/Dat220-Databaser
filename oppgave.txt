@@ -30,7 +30,7 @@ Requirements:
     Diagram need to be available during the project presentation. Your database must include 5 or more tables with meaningful relationships between them.
     Define primary and foreign keys and ensure proper normalization up to the 3rd Normal Form (3NF) to maintain data integrity and avoid redundancy.
     Populate your database with sample data (at least 10 records per table).
-    
+
 2. Web Application
     Build a simple Web interface to interact with your database. Implement CRUD functionality (Create, Read, Update, Delete) for at least 2 key entities.
 You can use Flask and Flask templates to develop the application. If you want to use other framework or tools, this needs to be specified in the project proposal.
@@ -52,3 +52,11 @@ regardless of whether you choose option a or b. Describe your planned solution i
         ER diagram and normalization analysis must be included in the presentation or at least be available during the presentation.
         SQL queries. Show your queries and explain their functionality
         Your running database and Web application functionality.
+
+
+Presentations:
+    All group members must be present and participate equally during the presentation, explaining their respective parts.
+    All presentations will take place on week 17 during the Thursday, April 24 and Friday, April 25 classes. 
+    If you are not available on either of these days, contact Munira Mahammed Seedow at least two weeks before the presentations.
+    You will need to sign up for particular time slot of the presentation during these two days. Details of this sign up will be
+    published later in the semester.
