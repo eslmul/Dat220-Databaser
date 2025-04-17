@@ -1,46 +1,47 @@
 Problemanalyse for sosial media-plattform
+
 1. Problemdefinisjon
-    Vi skal designe og implementere en database for en sosial media-plattform som muliggjør deling av innhold, kommunikasjon mellom brukere, og nettverksbygging. Plattformen skal støtte de grunnleggende funksjonene som moderne sosiale medier tilbyr, samtidig som den er skalerbar og sikker.
+    Vi skal designe og implementere en database for en sosial media-plattform som muliggjør deling av innhold, kommunikasjon mellom brukere, og nettverksbygging. 
+    Plattformen skal støtte de grunnleggende funksjonene som moderne sosiale medier tilbyr, samtidig som den er skalerbar og sikker.
+
 2. Brukerbehov og funksjonelle krav
     Følgende behov og funksjoner må understøttes av databasen:
-
-Brukeradministrasjon:
+ Brukeradministrasjon:
     Registrering av nye brukere med unike brukernavn og e-postadresser
     Lagring av brukerinformasjon inkludert profildata og innstillinger
     Autentisering og autorisasjon av brukere
 
-Innholdshåndtering:
+ Innholdshåndtering:
     Oppretting, redigering og sletting av innlegg
     Mulighet for å dele ulike typer innhold (tekst, bilder, lenker)
     Innstillinger for synlighet og personvern for innlegg
 
-Interaksjon mellom brukere:
+ Interaksjon mellom brukere:
     Kommentarer på innlegg
     Reaksjoner/likes på innlegg og kommentarer
     Følge andre brukere for å se deres aktivitet
 
-Kommunikasjon:
+ Kommunikasjon:
     Private meldinger mellom brukere
     Varslinger om aktivitet relevant for brukeren
 
-Organisering av innhold:
+ Organisering av innhold:
     Kategorisering av innlegg med tagger/emneknagger
     Søkefunksjonalitet for å finne brukere, innlegg og tagger
 
-
-
 3. Dataanalyse
-    Hovedentiteter:
-        Brukere - Grunnsteinen i systemet som representerer brukere med deres personlige data.
-        Innlegg - Brukernes delte innhold som er synlig for andre.
-        Kommentarer - Responser fra brukere på innlegg eller andre kommentarer.
-        Reaksjoner - Interaksjoner som likes eller andre emosjonelle responser på innhold.
-        Følgerelasjoner - Koblingen mellom følgere og de som blir fulgt.
-        Meldinger - Privat kommunikasjon mellom brukere.
-        Tagger - Kategorisering av innhold for organisering og søk.
+ Hovedentiteter:
+    Brukere - Grunnsteinen i systemet som representerer brukere med deres personlige data.
+    Innlegg - Brukernes delte innhold som er synlig for andre.
+    Kommentarer - Responser fra brukere på innlegg eller andre kommentarer.
+    Reaksjoner - Interaksjoner som likes eller andre emosjonelle responser på innhold.
+    Følgerelasjoner - Koblingen mellom følgere og de som blir fulgt.
+    Meldinger - Privat kommunikasjon mellom brukere.
+    Tagger - Kategorisering av innhold for organisering og søk.
 
-    Attributter og relasjoner:
-        (Detaljert beskrivelse av hver entitet med attributter og nøkler som i ER-diagrammet)
+ Attributter og relasjoner:
+    (Detaljert beskrivelse av hver entitet med attributter og nøkler som i ER-diagrammet)
+
 4. Dataflyt og prosesser
     Når en bruker registrerer seg, opprettes en ny post i BRUKERE-tabellen
     Når en bruker publiserer innlegg, opprettes en post i INNLEGG-tabellen med referanse til brukeren
