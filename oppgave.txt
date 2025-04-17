@@ -1,0 +1,54 @@
+Project: Design Platform Database
+Overview
+This project is designed to provide you with hands-on experience in solving a real-world problem by designing and developing a
+database that meets specific requirements. You will apply your knowledge of database design, SQL, and Web programming to
+create a functional and normalized database.
+This project is mandatory and must be completed successfully to qualify for the exam.
+⚠ Note: If you took this subject last year, you are still required to complete this project.
+You will work in groups of 2 or exceptionally 3 to complete this project. To create the groups, each student needs to fill out
+following form: https://docs.google.com/forms/d/e/1FAIpQLSegG5YBfWK9i3dYVz5eYgcOmTYC_ItLMfvWcsL6BB-gLFrnXg/viewform?usp=sharing
+You might either select your team member or ask the course coordinators to create a group. All forms need
+to be submitted by midnight Thursday, February 27, 2025. If you strongly prefer to work in a group of 3, then you need to work on
+an option b and your project needs to be larger than the basic requirements (at least 8 tables, at least 8 SQL queries, and at least 20
+records per table need to be included) and this needs to be specified in the project proposal.
+You are free to choose the type of application you want to develop, but in both cases your solution needs to fulfill given
+requirements. You can either:
+
+a) Create a social media platform database for a Web application. This could involve managing user data, their followers,
+interests, posts, comments, likes, and other activities
+or
+
+b) Develop your own application.
+You must submit which option you choose (a or b) within two weeks after the project publication (until midnight Sunday, March 9)
+in Canvas. If you choose option b, you need to include two paragraphs describing the project of your choice. This proposal needs to
+be for both options submitted as a pdf in Canvas.
+
+Requirements:
+1. Database Design
+    Conduct a problem analysis to identify key entities and relationships for your Database. Problem analysis needs to be
+    written and available during the project presentation. Create an ER (Entity-Relationship) diagram to visualize the structure of your database.
+    Diagram need to be available during the project presentation. Your database must include 5 or more tables with meaningful relationships between them.
+    Define primary and foreign keys and ensure proper normalization up to the 3rd Normal Form (3NF) to maintain data integrity and avoid redundancy.
+    Populate your database with sample data (at least 10 records per table).
+    
+2. Web Application
+    Build a simple Web interface to interact with your database. Implement CRUD functionality (Create, Read, Update, Delete) for at least 2 key entities.
+You can use Flask and Flask templates to develop the application. If you want to use other framework or tools, this needs to be specified in the project proposal.
+NOTE: If you haven’t yet passed DAT310 (Web programming), you may create a simple Python based application. In this case you need to ask for an approval within two weeks after the project publication, 
+regardless of whether you choose option a or b. Describe your planned solution in two paragraphs in the proposal.
+
+3. SQL Queries
+    All SQL queries must be written manually without using any migration tools. You can decide whether you want to use SQLite or MySQL for the database.
+    Include the following SQL queries:
+        At least 2 diﬀerent joins between multiple tables.
+        Aggregation query (e.g., averages, totals, counts).
+        Search/filter operations: Allow users to retrieve specific records based on user-defined criteria, such as filtering by date
+        range, category or status.
+        A query using grouping (e.g., GROUP BY).
+
+4. Presentation
+    Present your project in 5-7-minutes (+2-3 minutes for questions), showcasing:
+        Your database schema and design of the normalized table. The problem analysis, 
+        ER diagram and normalization analysis must be included in the presentation or at least be available during the presentation.
+        SQL queries. Show your queries and explain their functionality
+        Your running database and Web application functionality.
