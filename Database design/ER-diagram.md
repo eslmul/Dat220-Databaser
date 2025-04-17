@@ -1,3 +1,6 @@
+# ER-diagram for sosial media-plattform
+
+```mermaid
 erDiagram
     BRUKERE {
         int bruker_id PK
@@ -78,3 +81,4 @@ erDiagram
     BRUKERE ||--o{ MELDINGER : "mottar"
     INNLEGG ||--o{ INNLEGG_TAGGER : "har"
     TAGGER ||--o{ INNLEGG_TAGGER : "tilknyttet til"
+    
