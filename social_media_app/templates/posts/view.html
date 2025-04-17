@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Se innlegg - {{ post.innlegg_id }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                {% if post.profilbilde %}
+                    <img src="{{ post.profilbilde }}" alt="{{ post.brukernavn }}" class="rounded-circle me-2" style="width: 40px; height: 40px;">
+                {% else %}
+                    <div class="rounded-circle me-2 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; color: white;">
+                        {{ post.brukernavn[0] }}
+                    </div>
+                {% endif %}
+                <div>
+                    <a href="{{ url_for('view_user', user_id=post.bruker_id) }}" class="text-decoration-none fw-bold">{{ post.brukernavn }}</a>
+                    <div class="text-muted small">{{ post.opprettet_dato.strftime('%d.%m.%Y %H:%M') }}</div>
+                </div>
+                <div class="ms-auto">
+                    <span class="badge {% if post.synlighet == 'offentlig' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ post.synlighet }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="card-text fs-5">{{ post.innhold }}</p>
+                
+                <!-- Reactions section -->
+                <div class="d-flex align-items-center mt-4">
+                    <div class="me-3">
+                        <i class="bi bi-hand-thumbs-up"></i> Liker
+                    </div>
+                    <div class="me-3">
+                        <i class="bi bi-chat"></i> Kommenter
+                    </div>
+                    <div class="ms-auto text-muted">
+                        {% if reactions %}
+                            {% for reaction in reactions %}
+                                <span class="badge bg-light text-dark me-1">
+                                    {{ reaction.reaksjon_type }}: {{ reaction.count }}
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="small">Ingen reaksjoner ennå</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <div>
+                    <small class="text-muted">Innlegg ID: {{ post.innlegg_id }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('edit_post', post_id=post.innlegg_id) }}" class="btn btn-sm btn-outline-secondary me-1">Rediger</a>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deletePostModal">
+                        Slett
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Comments section -->
+        <h4 class="mb-3">Kommentarer ({{ comments|length }})</h4>
+        
+        {% if comments %}
+            {% for comment in comments %}
+                <div class="card mb-3 {% if comment.forelder_kommentar_id %}ms-5{% endif %}">
+                    <div class="card-header d-flex align-items-center">
+                        {% if comment.profilbilde %}
+                            <img src="{{ comment.profilbilde }}" alt="{{ comment.brukernavn }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                        {% else %}
+                            <div class="rounded-circle me-2 bg-secondary d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; color: white; font-size: 0.8rem;">
+                                {{ comment.brukernavn[0] }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <a href="{{ url_for('view_user', user_id=comment.bruker_id) }}" class="text-decoration-none fw-bold">{{ comment.brukernavn }}</a>
+                            <div class="text-muted small">{{ comment.opprettet_dato.strftime('%d.%m.%Y %H:%M') }}</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ comment.innhold }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-light">
+                Ingen kommentarer ennå. Vær den første til å kommentere!
+            </div>
+        {% endif %}
+        
+        <!-- Add comment form would go here in a real app -->
+    </div>
+</div>
+
+<!-- Delete Post Modal -->
+<div class="modal fade" id="deletePostModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bekreft sletting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Er du sikker på at du vil slette dette innlegget? Dette kan ikke angres, og alle kommentarer og reaksjoner tilknyttet innlegget vil også bli slettet.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <form action="{{ url_for('delete_post', post_id=post.innlegg_id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Slett innlegg</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

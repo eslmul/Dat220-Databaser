@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Opprett nytt innlegg{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Opprett nytt innlegg</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('create_post') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="bruker_id" class="form-label">Bruker *</label>
+                        <select class="form-select" id="bruker_id" name="bruker_id" required>
+                            <option value="">Velg bruker</option>
+                            {% for user in users %}
+                                <option value="{{ user.bruker_id }}">{{ user.brukernavn }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">I en ekte applikasjon ville dette være automatisk basert på den påloggede brukeren.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="innhold" class="form-label">Innhold *</label>
+                        <textarea class="form-control" id="innhold" name="innhold" rows="5" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="synlighet" class="form-label">Synlighet</label>
+                        <select class="form-select" id="synlighet" name="synlighet">
+                            <option value="offentlig">Offentlig</option>
+                            <option value="venner">Kun venner</option>
+                            <option value="privat">Privat</option>
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Publiser innlegg</button>
+                        <a href="{{ url_for('list_posts') }}" class="btn btn-outline-secondary">Avbryt</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
