@@ -1,0 +1,85 @@
+Problemanalyse for sosial media-plattform
+1. Problemdefinisjon
+Vi skal designe og implementere en database for en sosial media-plattform som muliggjør deling av innhold, kommunikasjon mellom brukere, og nettverksbygging. Plattformen skal støtte de grunnleggende funksjonene som moderne sosiale medier tilbyr, samtidig som den er skalerbar og sikker.
+2. Brukerbehov og funksjonelle krav
+Følgende behov og funksjoner må understøttes av databasen:
+
+Brukeradministrasjon:
+
+Registrering av nye brukere med unike brukernavn og e-postadresser
+Lagring av brukerinformasjon inkludert profildata og innstillinger
+Autentisering og autorisasjon av brukere
+
+
+Innholdshåndtering:
+
+Oppretting, redigering og sletting av innlegg
+Mulighet for å dele ulike typer innhold (tekst, bilder, lenker)
+Innstillinger for synlighet og personvern for innlegg
+
+
+Interaksjon mellom brukere:
+
+Kommentarer på innlegg
+Reaksjoner/likes på innlegg og kommentarer
+Følge andre brukere for å se deres aktivitet
+
+
+Kommunikasjon:
+
+Private meldinger mellom brukere
+Varslinger om aktivitet relevant for brukeren
+
+
+Organisering av innhold:
+
+Kategorisering av innlegg med tagger/emneknagger
+Søkefunksjonalitet for å finne brukere, innlegg og tagger
+
+
+
+3. Dataanalyse
+Hovedentiteter:
+
+Brukere - Grunnsteinen i systemet som representerer brukere med deres personlige data.
+Innlegg - Brukernes delte innhold som er synlig for andre.
+Kommentarer - Responser fra brukere på innlegg eller andre kommentarer.
+Reaksjoner - Interaksjoner som likes eller andre emosjonelle responser på innhold.
+Følgerelasjoner - Koblingen mellom følgere og de som blir fulgt.
+Meldinger - Privat kommunikasjon mellom brukere.
+Tagger - Kategorisering av innhold for organisering og søk.
+
+Attributter og relasjoner:
+(Detaljert beskrivelse av hver entitet med attributter og nøkler som i ER-diagrammet)
+4. Dataflyt og prosesser
+
+Når en bruker registrerer seg, opprettes en ny post i BRUKERE-tabellen
+Når en bruker publiserer innlegg, opprettes en post i INNLEGG-tabellen med referanse til brukeren
+Kommentarer og reaksjoner knyttes til spesifikke innlegg og brukere
+Når en bruker følger en annen, registreres dette i FØLGER-tabellen
+Meldinger lagres med referanser til både avsender og mottaker
+Innlegg kan tagges med flere tagger gjennom INNLEGG_TAGGER-tabellen
+
+5. Begrensninger og utfordringer
+
+Skalerbarhet: Systemet må håndtere mange samtidige brukere og store datamengder
+Ytelse: Spørringer mot databasen må være optimalisert for rask responstid
+Sikkerhet: Personlig informasjon og passord må beskyttes mot uautorisert tilgang
+Integritet: Databasen må sikre at relasjoner opprettholdes og at data ikke blir korrupt
+Personvern: Innstillinger for synlighet må respekteres i alle deler av systemet
+
+6. Normaliseringsanalyse
+Databasen er designet for å oppfylle tredje normalform (3NF):
+
+1NF: Alle tabeller har primærnøkler og atomære verdier
+2NF: Alle ikke-nøkkelattributter er fullt funksjonelt avhengige av primærnøkkelen
+3NF: Ingen ikke-nøkkelattributter er avhengige av andre ikke-nøkkelattributter
+
+Dette oppnås ved å bruke separate tabeller for hver logisk entitet og relasjonstabeller for mange-til-mange-forhold. For eksempel brukes INNLEGG_TAGGER for å knytte innlegg til tagger, i stedet for å ha en liste med tagger i INNLEGG-tabellen.
+7. Skalerbarhetshensyn
+
+Indeksering av nøkkelkolonner for effektive spørringer
+Bruk av fremmednøkler for å opprettholde referanseintegritet
+Design som tillater horisontal skalering av databasen ved behov
+
+Denne problemanalysen danner grunnlaget for implementasjonen av databasen og sørger for at alle krav og behov er identifisert og adressert i design- og utviklingsfasen.

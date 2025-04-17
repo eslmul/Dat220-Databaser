@@ -1,0 +1,54 @@
+Forklaring av databasedesignet for sosial media-plattformen
+Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
+Hovedelementer i systemet
+	1	Brukere (BRUKERE): Dette er fundamentet i plattformen. Hver bruker har en unik ID, brukernavn, epost, passord (lagret som hash av sikkerhetshensyn), profilbilde, bio, registreringsdato, fødselsdato og status. Dette er all informasjon som trengs for å administrere brukere.
+	2	Innlegg (INNLEGG): Brukere oppretter innlegg med innhold, og systemet registrerer når innlegget ble opprettet og sist oppdatert. Innlegg kan ha forskjellig synlighet (offentlig/privat) og er alltid knyttet til en spesifikk bruker via bruker_id.
+	3	Kommentarer (KOMMENTARER): Brukere kan kommentere innlegg. Hver kommentar er knyttet til både et spesifikt innlegg og en bruker. Kommentarer kan også være svar på andre kommentarer (forelder_kommentar_id).
+	4	Reaksjoner (REAKSJONER): Dette representerer "likes" eller andre reaksjonstyper. En bruker kan reagere på både innlegg og kommentarer. Tabellen lagrer hvilken type reaksjon, når den ble gitt, og hvem som ga den.
+	5	Følgerelasjoner (FØLGER): Dette håndterer "følger"-funksjonaliteten. En bruker kan følge andre brukere, og tabellen registrerer både følgeren og den som blir fulgt, samt når følgingen startet og statusen på relasjonen.
+	6	Meldinger (MELDINGER): Private meldinger mellom brukere. Inneholder selve meldingsteksten, tidspunkt for sending og lesing, og referanser til både avsender og mottaker.
+	7	Tagger (TAGGER): Kategorier eller emneknagger som kan knyttes til innlegg.
+	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
+Relasjonene i systemet
+Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
+	•	En bruker kan opprette mange innlegg (1 )
+	•	En bruker kan skrive mange kommentarer (1 )
+	•	Et innlegg kan ha mange kommentarer (1 )
+	•	En bruker kan gi mange reaksjoner, og både innlegg og kommentarer kan motta reaksjoner (1 )
+	•	En bruker kan følge mange brukere, og en bruker kan ha mange følgere (mange gjennom FØLGER-tabellen)
+	•	En bruker kan sende/motta mange meldinger (1 )
+	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
+Normaliseringen
+Designet er normalisert til tredje normalform (3NF), noe som betyr:
+	1	Det eliminerer duplisering av data
+	2	Det sikrer dataintegritet
+	3	Det gjør det enklere å vedlikeholde og oppdatere databasen
+For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
+Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
+Forklaring av databasedesignet for sosial media-plattformen
+Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
+Hovedelementer i systemet
+	1	Brukere (BRUKERE): Dette er fundamentet i plattformen. Hver bruker har en unik ID, brukernavn, epost, passord (lagret som hash av sikkerhetshensyn), profilbilde, bio, registreringsdato, fødselsdato og status. Dette er all informasjon som trengs for å administrere brukere.
+	2	Innlegg (INNLEGG): Brukere oppretter innlegg med innhold, og systemet registrerer når innlegget ble opprettet og sist oppdatert. Innlegg kan ha forskjellig synlighet (offentlig/privat) og er alltid knyttet til en spesifikk bruker via bruker_id.
+	3	Kommentarer (KOMMENTARER): Brukere kan kommentere innlegg. Hver kommentar er knyttet til både et spesifikt innlegg og en bruker. Kommentarer kan også være svar på andre kommentarer (forelder_kommentar_id).
+	4	Reaksjoner (REAKSJONER): Dette representerer "likes" eller andre reaksjonstyper. En bruker kan reagere på både innlegg og kommentarer. Tabellen lagrer hvilken type reaksjon, når den ble gitt, og hvem som ga den.
+	5	Følgerelasjoner (FØLGER): Dette håndterer "følger"-funksjonaliteten. En bruker kan følge andre brukere, og tabellen registrerer både følgeren og den som blir fulgt, samt når følgingen startet og statusen på relasjonen.
+	6	Meldinger (MELDINGER): Private meldinger mellom brukere. Inneholder selve meldingsteksten, tidspunkt for sending og lesing, og referanser til både avsender og mottaker.
+	7	Tagger (TAGGER): Kategorier eller emneknagger som kan knyttes til innlegg.
+	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
+Relasjonene i systemet
+Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
+	•	En bruker kan opprette mange innlegg (1 )
+	•	En bruker kan skrive mange kommentarer (1 )
+	•	Et innlegg kan ha mange kommentarer (1 )
+	•	En bruker kan gi mange reaksjoner, og både innlegg og kommentarer kan motta reaksjoner (1 )
+	•	En bruker kan følge mange brukere, og en bruker kan ha mange følgere (mange gjennom FØLGER-tabellen)
+	•	En bruker kan sende/motta mange meldinger (1 )
+	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
+Normaliseringen
+Designet er normalisert til tredje normalform (3NF), noe som betyr:
+	1	Det eliminerer duplisering av data
+	2	Det sikrer dataintegritet
+	3	Det gjør det enklere å vedlikeholde og oppdatere databasen
+For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
+Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
