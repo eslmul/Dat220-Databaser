@@ -12,7 +12,7 @@ Hovedelementer i systemet
 	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
 
 Relasjonene i systemet
-Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
+ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
 	•	En bruker kan opprette mange innlegg (1 )
 	•	En bruker kan skrive mange kommentarer (1 )
 	•	Et innlegg kan ha mange kommentarer (1 )
@@ -22,14 +22,14 @@ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er ko
 	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
 
 Normaliseringen
-Designet er normalisert til tredje normalform (3NF), noe som betyr:
+ Designet er normalisert til tredje normalform (3NF), noe som betyr:
 	1	Det eliminerer duplisering av data
 	2	Det sikrer dataintegritet
 	3	Det gjør det enklere å vedlikeholde og oppdatere databasen
-For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
-Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
-Forklaring av databasedesignet for sosial media-plattformen
-Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
+ For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
+ Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
+ Forklaring av databasedesignet for sosial media-plattformen
+ Databasedesignet vi har utviklet representerer et komplett system for en sosial media-plattform. La meg forklare hva som skjer i dette designet:
 
 Hovedelementer i systemet
 	1	Brukere (BRUKERE): Dette er fundamentet i plattformen. Hver bruker har en unik ID, brukernavn, epost, passord (lagret som hash av sikkerhetshensyn), profilbilde, bio, registreringsdato, fødselsdato og status. Dette er all informasjon som trengs for å administrere brukere.
@@ -42,7 +42,7 @@ Hovedelementer i systemet
 	8	Innlegg-tagger kobling (INNLEGG_TAGGER): En koblingstabell som knytter sammen innlegg og tagger i et mange-til-mange forhold.
 
 Relasjonene i systemet
-Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
+ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er koblet sammen:
 	•	En bruker kan opprette mange innlegg (1 )
 	•	En bruker kan skrive mange kommentarer (1 )
 	•	Et innlegg kan ha mange kommentarer (1 )
@@ -52,9 +52,9 @@ Pilene og linjene i ER-diagrammet viser hvordan de forskjellige entitetene er ko
 	•	Et innlegg kan ha mange tagger, og en tag kan knyttes til mange innlegg (mange gjennom INNLEGG_TAGGER-tabellen)
 
 Normaliseringen
-Designet er normalisert til tredje normalform (3NF), noe som betyr:
+ Designet er normalisert til tredje normalform (3NF), noe som betyr:
 	1	Det eliminerer duplisering av data
 	2	Det sikrer dataintegritet
 	3	Det gjør det enklere å vedlikeholde og oppdatere databasen
-For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
-Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
+ For eksempel, i stedet for å lagre brukerinformasjon direkte i innlegg-tabellen, bruker vi en fremmednøkkel (bruker_id) for å koble til BRUKERE-tabellen. Dette betyr at hvis en bruker endrer sitt brukernavn, trenger vi bare å oppdatere én plass.
+ Dette designet gir et solid grunnlag for å implementere alle funksjonene du trenger i en sosial media-plattform, samtidig som det er fleksibelt nok til å utvides ved behov.
