@@ -117,9 +117,9 @@ def create_user():
         bio = request.form['bio']
         fødselsdato = request.form['fødselsdato']
         
-        # Validate data (basic validation)
-        if not brukernavn or not epost or not passord_hash:
-            flash('Brukernavn, e-post og passord er påkrevd!', 'danger')
+        # Validate data (including required birthdate)
+        if not brukernavn or not epost or not passord_hash or not fødselsdato:
+            flash('Brukernavn, e-post, passord og fødselsdato er påkrevd!', 'danger')
             return render_template('users/create.html')
         
         # Check if username or email already exists
