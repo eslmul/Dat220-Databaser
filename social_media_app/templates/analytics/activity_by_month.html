@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Aktivitet per måned - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Aktivitet per måned</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left"></i> Tilbake til forsiden
+    </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h2 class="h5 mb-0"><i class="fas fa-calendar-alt"></i> Månedlig aktivitetsanalyse</h2>
+    </div>
+    <div class="card-body">
+        {% if months %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Måned</th>
+                            <th>Innlegg</th>
+                            <th>Kommentarer</th>
+                            <th>Reaksjoner</th>
+                            <th>Aktive brukere</th>
+                            <th>Total aktivitet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month in months %}
+                        <tr>
+                            <td>{{ month.måned }}</td>
+                            <td>{{ month.antall_innlegg }}</td>
+                            <td>{{ month.antall_kommentarer }}</td>
+                            <td>{{ month.antall_reaksjoner }}</td>
+                            <td>{{ month.aktive_brukere }}</td>
+                            <td>{{ month.antall_innlegg + month.antall_kommentarer + month.antall_reaksjoner }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Ingen aktivitetsdata tilgjengelig.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h2 class="h5 mb-0"><i class="fas fa-info-circle"></i> Aktivitetsoversikt</h2>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Trender i aktivitet</h5>
+                        <p class="card-text">
+                            Denne analysen viser aktivitetsmønstre over tid på plattformen, aggregert per måned.
+                            Du kan se hvordan antall innlegg, kommentarer og reaksjoner utvikler seg, 
+                            samt hvor mange unike brukere som er aktive hver måned.
+                        </p>
+                        <p class="card-text">
+                            Disse dataene kan brukes til å:
+                        </p>
+                        <ul>
+                            <li>Identifisere sesongmessige trender</li>
+                            <li>Måle effekten av markedsføringskampanjer</li>
+                            <li>Forstå brukerengasjement over tid</li>
+                            <li>Planlegge fremtidige innholdsstrategier</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Tolkning av data</h5>
+                        
+                        {% if months|length > 0 %}
+                            {% set latest = months[0] %}
+                            {% set total_activity = latest.antall_innlegg + latest.antall_kommentarer + latest.antall_reaksjoner %}
+                            
+                            <div class="alert alert-info">
+                                <h6>Siste måned ({{ latest.måned }}):</h6>
+                                <ul class="mb-0">
+                                    <li>{{ latest.antall_innlegg }} innlegg publisert</li>
+                                    <li>{{ latest.antall_kommentarer }} kommentarer skrevet</li>
+                                    <li>{{ latest.antall_reaksjoner }} reaksjoner gitt</li>
+                                    <li>{{ latest.aktive_brukere }} aktive brukere</li>
+                                    <li>Total aktivitet: {{ total_activity }}</li>
+                                </ul>
+                            </div>
+                            
+                            {% if months|length > 1 %}
+                                {% set previous = months[1] %}
+                                {% set prev_total = previous.antall_innlegg + previous.antall_kommentarer + previous.antall_reaksjoner %}
+                                {% set change = ((total_activity - prev_total) / prev_total * 100)|round|int if prev_total > 0 else 0 %}
+                                
+                                <div class="alert {{ 'alert-success' if change >= 0 else 'alert-warning' }}">
+                                    <h6>Endring fra forrige måned:</h6>
+                                    <p class="display-6 mb-0">
+                                        {{ change }}% 
+                                        {% if change >= 0 %}
+                                            <i class="fas fa-arrow-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-arrow-down"></i>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <p class="card-text">Ingen data å analysere ennå.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

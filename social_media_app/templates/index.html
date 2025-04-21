@@ -1,56 +1,90 @@
-{% extends "base.html" %}
-
-{% block title %}Hjem - SoMe Platform{% endblock %}
-
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
+<div class="row justify-content-center mt-5">
+    <div class="col-md-12">
         <div class="card shadow-sm">
-            <div class="card-body p-5 text-center">
-                <h1 class="display-4 mb-4">Velkommen til SoMe Platform</h1>
-                <p class="lead mb-4">En sosial media-plattform for å dele innhold, kommunisere med venner og bygge nettverk.</p>
-                
-                <div class="row justify-content-center mt-5">
-                    <div class="col-md-4">
-                        <div class="card mb-4 shadow-sm">
-                            <div class="card-body text-center py-4">
-                                <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                                <h3>Brukere</h3>
-                                <p>Se brukerene på plattformen og opprett ny profil</p>
-                                <a href="{{ url_for('list_users') }}" class="btn btn-primary mt-2">
-                                    <i class="fas fa-arrow-right"></i> Se alle brukere
+            <div class="card-header bg-light">
+                <h2 class="h4 mb-0">Dataspørringer og analyser</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                                <h4>Søk og filtrering</h4>
+                                <p>Søk etter innlegg basert på bruker, dato, tagger og mer</p>
+                                <a href="{{ url_for('search') }}" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Gå til søk
                                 </a>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-4">
-                        <div class="card mb-4 shadow-sm">
-                            <div class="card-body text-center py-4">
-                                <i class="fas fa-comment-alt fa-3x text-success mb-3"></i>
-                                <h3>Innlegg</h3>
-                                <p>Utforsk innlegg fra andre brukere eller del ditt eget</p>
-                                <a href="{{ url_for('list_posts') }}" class="btn btn-success mt-2">
-                                    <i class="fas fa-arrow-right"></i> Se alle innlegg
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-fire fa-3x text-danger mb-3"></i>
+                                <h4>Populære innlegg</h4>
+                                <p>Se de mest populære innleggene basert på reaksjoner og kommentarer</p>
+                                <a href="{{ url_for('popular_posts') }}" class="btn btn-danger">
+                                    <i class="fas fa-fire"></i> Se populære innlegg
                                 </a>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="mt-5">
-                    <h2 class="h4 mb-4">Kom i gang nå</h2>
-                    <div class="d-flex justify-content-center gap-3">
-                        <a href="{{ url_for('show_create_user') }}" class="btn btn-lg btn-outline-primary">
-                            <i class="fas fa-user-plus"></i> Opprett ny bruker
-                        </a>
-                        <a href="{{ url_for('show_create_post') }}" class="btn btn-lg btn-outline-success">
-                            <i class="fas fa-plus"></i> Opprett nytt innlegg
-                        </a>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-pie fa-3x text-success mb-3"></i>
+                                <h4>Plattformstatistikk</h4>
+                                <p>Se statistikk og trender for hele plattformen</p>
+                                <a href="{{ url_for('platform_stats') }}" class="btn btn-success">
+                                    <i class="fas fa-chart-pie"></i> Se statistikk
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-3x text-info mb-3"></i>
+                                <h4>Brukerengasjement</h4>
+                                <p>Analyse av brukeraktivitet og engasjement</p>
+                                <a href="{{ url_for('user_engagement') }}" class="btn btn-info">
+                                    <i class="fas fa-users"></i> Se brukerengasjement
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-tags fa-3x text-warning mb-3"></i>
+                                <h4>Tagganalyse</h4>
+                                <p>Se hvilke tagger som er mest populære</p>
+                                <a href="{{ url_for('tag_analysis') }}" class="btn btn-warning">
+                                    <i class="fas fa-tags"></i> Se tagganalyse
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-calendar-alt fa-3x text-secondary mb-3"></i>
+                                <h4>Aktivitet per måned</h4>
+                                <p>Analyse av aktivitetstrender over tid</p>
+                                <a href="{{ url_for('activity_by_month') }}" class="btn btn-secondary">
+                                    <i class="fas fa-calendar-alt"></i> Se månedlig aktivitet
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Søk - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h1 class="h3 mb-0">Avansert søk</h1>
+    </div>
+    <div class="card-body">
+        <form method="get" action="{{ url_for('search') }}" class="row g-3">
+            <div class="col-md-12">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" placeholder="Søk i innlegg..." 
+                           name="search_term" value="{{ filters.search_term }}">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> Søk
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="user_id" class="form-label">Bruker</label>
+                <select class="form-select" id="user_id" name="user_id">
+                    <option value="">Alle brukere</option>
+                    {% for user in users %}
+                        <option value="{{ user.bruker_id }}" {% if filters.user_id|string == user.bruker_id|string %}selected{% endif %}>
+                            {{ user.brukernavn }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="tag_id" class="form-label">Tagg</label>
+                <select class="form-select" id="tag_id" name="tag_id">
+                    <option value="">Alle tagger</option>
+                    {% for tag in tags %}
+                        <option value="{{ tag.tag_id }}" {% if filters.tag_id|string == tag.tag_id|string %}selected{% endif %}>
+                            {{ tag.navn }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Fra dato</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ filters.start_date }}">
+            </div>
+            
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">Til dato</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ filters.end_date }}">
+            </div>
+            
+            <div class="col-md-4">
+                <label for="visibility" class="form-label">Synlighet</label>
+                <select class="form-select" id="visibility" name="visibility">
+                    <option value="">Alle</option>
+                    <option value="offentlig" {% if filters.visibility == 'offentlig' %}selected{% endif %}>Offentlig</option>
+                    <option value="venner" {% if filters.visibility == 'venner' %}selected{% endif %}>Bare venner</option>
+                    <option value="privat" {% if filters.visibility == 'privat' %}selected{% endif %}>Privat</option>
+                </select>
+            </div>
+            
+            <div class="col-12 d-flex justify-content-between">
+                <a href="{{ url_for('search') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo"></i> Nullstill filtre
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Filtrer resultater
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h2 class="h4 mb-0">Søkeresultater</h2>
+        <span class="badge bg-primary">{{ results|length }} treff</span>
+    </div>
+    <div class="card-body">
+        {% if results %}
+            <div class="row">
+                {% for post in results %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2">
+                                        {% if post.profilbilde %}
+                                            <img src="{{ url_for('static', filename='uploads/' + post.profilbilde) }}" 
+                                                alt="{{ post.brukernavn }}" class="rounded-circle" width="30" height="30">
+                                        {% else %}
+                                            <div class="rounded-circle rounded-circle-placeholder">
+                                                <i class="fas fa-user fa-sm text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">{{ post.brukernavn }}</h5>
+                                        <small class="text-muted">{{ post.opprettet_dato.strftime('%d.%m.%Y %H:%M') }}</small>
+                                    </div>
+                                </div>
+                                <span class="badge {{ 'bg-success' if post.synlighet == 'offentlig' else 'bg-warning' }}">
+                                    {{ post.synlighet }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                {% if post.innhold|length > 150 %}
+                                    {{ post.innhold[:150] }}...
+                                {% else %}
+                                    {{ post.innhold }}
+                                {% endif %}
+                            </p>
+                            
+                            {% if post.tags %}
+                            <div class="mt-2">
+                                {% for tag_name in post.tags.split(', ') %}
+                                    <span class="badge bg-primary me-1">{{ tag_name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-primary me-3">
+                                    <i class="fas fa-thumbs-up"></i> {{ post.reaction_count }}
+                                </span>
+                                <span class="text-secondary">
+                                    <i class="fas fa-comment"></i> {{ post.comment_count }}
+                                </span>
+                            </div>
+                            <a href="{{ url_for('view_post', post_id=post.innlegg_id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> Les mer
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                {% if filters.start_date or filters.end_date or filters.user_id or filters.tag_id or filters.visibility or filters.search_term %}
+                    <p>Ingen innlegg funnet som matcher søkekriteriene.</p>
+                    <p>Prøv å justere filtrene for å få flere resultater.</p>
+                {% else %}
+                    <p>Bruk filtrene ovenfor for å søke etter innlegg.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Brukerengasjement - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Brukerengasjement</h1>
+    <a href="{{ url_for('list_users') }}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left"></i> Tilbake til alle brukere
+    </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h2 class="h5 mb-0">Analyse av brukeraktivitet på plattformen</h2>
+    </div>
+    <div class="card-body">
+        {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Bruker</th>
+                            <th>Status</th>
+                            <th>Innlegg</th>
+                            <th>Kommentarer</th>
+                            <th>Reaksjoner</th>
+                            <th>Følger</th>
+                            <th>Følgere</th>
+                            <th>Siste aktivitet</th>
+                            <th>Handling</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if user.profilbilde %}
+                                        <img src="{{ url_for('static', filename='uploads/' + user.profilbilde) }}" 
+                                             alt="{{ user.brukernavn }}" class="rounded-circle me-2" width="30" height="30">
+                                    {% else %}
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2 rounded-circle-placeholder">
+                                            <i class="fas fa-user fa-sm text-white"></i>
+                                        </div>
+                                    {% endif %}
+                                    {{ user.brukernavn }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {{ 'bg-success' if user.status == 'aktiv' else 'bg-secondary' }}">
+                                    {{ user.status }}
+                                </span>
+                            </td>
+                            <td>{{ user.antall_innlegg }}</td>
+                            <td>{{ user.antall_kommentarer }}</td>
+                            <td>{{ user.antall_reaksjoner }}</td>
+                            <td>{{ user.antall_følger }}</td>
+                            <td>{{ user.antall_følgere }}</td>
+                            <td>
+                                {% if user.siste_aktivitet %}
+                                    {{ user.siste_aktivitet.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('view_user', user_id=user.bruker_id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> Profil
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Ingen brukere funnet.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
