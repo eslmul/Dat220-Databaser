@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+
+{% block title %}Alle brukere - Sosial Media Plattform{% endblock %}
+
+{% block content %}
+<h1>Brukere</h1>
+<p>Bla gjennom alle brukere på plattformen.</p>
+
+<div class="user-grid">
+    {% for user in users %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">{{ user.brukernavn }}</h2>
+        </div>
+        <div class="card-content">
+            <div class="user-info">
+                {% if user.profilbilde %}
+                <img src="{{ url_for('static', filename='uploads/' + user.profilbilde) }}" alt="{{ user.brukernavn }}" class="user-avatar">
+                {% else %}
+                <div class="user-avatar user-avatar-placeholder">{{ user.brukernavn[0] }}</div>
+                {% endif %}
+                <div class="user-details">
+                    <p>{{ user.bio }}</p>
+                    <p class="card-meta">Status: {{ user.status }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="card-actions">
+                <a href="{{ url_for('users.show', id=user.bruker_id) }}" class="button">Vis profil</a>
+                <a href="{{ url_for('users.update', id=user.bruker_id) }}" class="button">Rediger</a>
+                <form action="{{ url_for('users.delete', id=user.bruker_id) }}" method="post" class="inline-form">
+                    <button type="submit" class="button button-danger delete-button">Slett</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('users.create') }}" class="button">Opprett ny bruker</a>
+</div>
+{% endblock %}

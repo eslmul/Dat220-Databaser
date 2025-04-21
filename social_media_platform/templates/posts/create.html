@@ -1,0 +1,96 @@
+{% extends 'layout.html' %}
+
+{% block title %}Opprett nytt innlegg - Sosial Media Plattform{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1 class="form-title">Opprett nytt innlegg</h1>
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="innhold">Innhold</label>
+            <textarea name="innhold" id="innhold" rows="5" class="content-textarea" placeholder="Hva tenker du på?" required></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="synlighet">Synlighet</label>
+            <select name="synlighet" id="synlighet">
+                <option value="offentlig">Offentlig</option>
+                <option value="venner">Kun venner</option>
+                <option value="privat">Privat</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="tags">Tagger</label>
+            <select name="tags" id="tags" multiple class="tag-select">
+                {% for tag in tags %}
+                <option value="{{ tag.navn }}">{{ tag.navn }}</option>
+                {% endfor %}
+            </select>
+            <small>Hold Ctrl (Cmd på Mac) for å velge flere tagger. Du kan også skrive inn nye tagger.</small>
+        </div>
+        
+        <div class="form-group">
+            <label>Ny tag</label>
+            <div class="new-tag-input">
+                <input type="text" id="new-tag-input" placeholder="Skriv en ny tag...">
+                <button type="button" id="add-tag-button" class="button">Legg til</button>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('posts.index') }}" class="button">Avbryt</a>
+            <button type="submit" class="button">Publiser innlegg</button>
+        </div>
+    </form>
+    
+    <script>
+        // Client-side script to handle adding new tags
+        document.addEventListener('DOMContentLoaded', function() {
+            const newTagInput = document.getElementById('new-tag-input');
+            const addTagButton = document.getElementById('add-tag-button');
+            const tagSelect = document.getElementById('tags');
+            
+            addTagButton.addEventListener('click', function() {
+                const tagName = newTagInput.value.trim();
+                
+                if (tagName) {
+                    // Check if tag already exists
+                    let exists = false;
+                    for (let i = 0; i < tagSelect.options.length; i++) {
+                        if (tagSelect.options[i].value === tagName) {
+                            exists = true;
+                            tagSelect.options[i].selected = true;
+                            break;
+                        }
+                    }
+                    
+                    // If tag doesn't exist, add it
+                    if (!exists) {
+                        const newOption = document.createElement('option');
+                        newOption.value = tagName;
+                        newOption.textContent = tagName;
+                        newOption.selected = true;
+                        tagSelect.appendChild(newOption);
+                    }
+                    
+                    // Clear input
+                    newTagInput.value = '';
+                    
+                    // Trigger change event to update display
+                    tagSelect.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            // Allow enter key to add tag
+            newTagInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTagButton.click();
+                }
+            });
+        });
+    </script>
+</div>
+{% endblock %}

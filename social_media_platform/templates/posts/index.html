@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+
+{% block title %}Innlegg - Sosial Media Plattform{% endblock %}
+
+{% block content %}
+<h1>Innlegg</h1>
+<p>Se hva andre brukere deler på plattformen.</p>
+
+<div class="post-list">
+    {% for post in posts %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <a href="{{ url_for('users.show', id=post.bruker_id) }}">{{ post.brukernavn }}</a>
+            </h2>
+            <span class="card-meta">{{ post.opprettet_dato }}</span>
+        </div>
+        <div class="card-content">
+            <p>{{ post.innhold }}</p>
+            
+            {% if post.tags %}
+            <div class="tags">
+                {% for tag in post.tags %}
+                <a href="{{ url_for('posts.by_tag', tag_name=tag.navn) }}" class="tag">{{ tag.navn }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <div class="card-meta">
+                <span><i class="icon-comment"></i> {{ post.comment_count }} kommentarer</span>
+                <span><i class="icon-heart"></i> {{ post.reaction_count }} reaksjoner</span>
+            </div>
+            <div class="card-actions">
+                <a href="{{ url_for('posts.show', id=post.innlegg_id) }}" class="button">Vis innlegg</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <p>Ingen innlegg å vise.</p>
+    {% endfor %}
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('posts.create') }}" class="button">Opprett nytt innlegg</a>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+
+{% block title %}Rediger kommentar - Sosial Media Plattform{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1 class="form-title">Rediger kommentar</h1>
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="innhold">Kommentarinnhold</label>
+            <textarea name="innhold" id="innhold" rows="4" required>{{ comment.innhold }}</textarea>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('posts.show', id=comment.innlegg_id) }}" class="button">Avbryt</a>
+            <button type="submit" class="button">Lagre endringer</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
