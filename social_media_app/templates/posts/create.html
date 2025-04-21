@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Opprett nytt innlegg - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h1 class="h3 mb-0">Opprett nytt innlegg</h1>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('create_post') }}" method="post">
+                    <div class="mb-3">
+                        <label for="bruker_id" class="form-label">Bruker*</label>
+                        <select class="form-select" id="bruker_id" name="bruker_id" required>
+                            <option value="" selected disabled>Velg bruker</option>
+                            {% for user in users %}
+                                <option value="{{ user.bruker_id }}">{{ user.brukernavn }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="innhold" class="form-label">Innhold*</label>
+                        <textarea class="form-control" id="innhold" name="innhold" rows="5" required
+                                  placeholder="Hva tenker du på?"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="synlighet" class="form-label">Synlighet*</label>
+                        <select class="form-select" id="synlighet" name="synlighet" required>
+                            <option value="offentlig" selected>Offentlig</option>
+                            <option value="venner">Bare venner</option>
+                            <option value="privat">Privat</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tagger</label>
+                        <div class="row">
+                            {% for tag in tags %}
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="{{ tag.tag_id }}" 
+                                               id="tag{{ tag.tag_id }}" name="tags">
+                                        <label class="form-check-label" for="tag{{ tag.tag_id }}">
+                                            {{ tag.navn }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('list_posts') }}" class="btn btn-outline-secondary">Avbryt</a>
+                        <button type="submit" class="btn btn-success">Publiser innlegg</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

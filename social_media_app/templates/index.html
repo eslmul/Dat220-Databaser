@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Hjem - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm">
+            <div class="card-body p-5 text-center">
+                <h1 class="display-4 mb-4">Velkommen til SoMe Platform</h1>
+                <p class="lead mb-4">En sosial media-plattform for å dele innhold, kommunisere med venner og bygge nettverk.</p>
+                
+                <div class="row justify-content-center mt-5">
+                    <div class="col-md-4">
+                        <div class="card mb-4 shadow-sm">
+                            <div class="card-body text-center py-4">
+                                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                <h3>Brukere</h3>
+                                <p>Se brukerene på plattformen og opprett ny profil</p>
+                                <a href="{{ url_for('list_users') }}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-arrow-right"></i> Se alle brukere
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4 shadow-sm">
+                            <div class="card-body text-center py-4">
+                                <i class="fas fa-comment-alt fa-3x text-success mb-3"></i>
+                                <h3>Innlegg</h3>
+                                <p>Utforsk innlegg fra andre brukere eller del ditt eget</p>
+                                <a href="{{ url_for('list_posts') }}" class="btn btn-success mt-2">
+                                    <i class="fas fa-arrow-right"></i> Se alle innlegg
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-5">
+                    <h2 class="h4 mb-4">Kom i gang nå</h2>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{{ url_for('show_create_user') }}" class="btn btn-lg btn-outline-primary">
+                            <i class="fas fa-user-plus"></i> Opprett ny bruker
+                        </a>
+                        <a href="{{ url_for('show_create_post') }}" class="btn btn-lg btn-outline-success">
+                            <i class="fas fa-plus"></i> Opprett nytt innlegg
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Brukere - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Brukere</h1>
+    <a href="{{ url_for('show_create_user') }}" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> Ny bruker
+    </a>
+</div>
+
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for user in users %}
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    {% if user.profilbilde %}
+                        <img src="{{ url_for('static', filename='uploads/' + user.profilbilde) }}" 
+                             alt="{{ user.brukernavn }}" class="rounded-circle" width="100" height="100">
+                    {% else %}
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto" 
+                             style="width: 100px; height: 100px;">
+                            <i class="fas fa-user fa-3x text-white"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <h5 class="card-title">{{ user.brukernavn }}</h5>
+                <p class="card-text text-muted small">Medlem siden {{ user.registrerings_dato.strftime('%d.%m.%Y') }}</p>
+                
+                <div class="mt-3">
+                    <p class="card-text text-truncate">
+                        {% if user.bio %}
+                            {{ user.bio }}
+                        {% else %}
+                            <span class="text-muted fst-italic">Ingen biografi</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('view_user', user_id=user.bruker_id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-user"></i> Se profil
+                    </a>
+                    <a href="{{ url_for('show_edit_user', user_id=user.bruker_id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit"></i> Rediger
+                    </a>
+                </div>
+            </div>
+            <div class="card-footer text-center">
+                <span class="badge {{ 'bg-success' if user.status == 'aktiv' else 'bg-secondary' }}">
+                    {{ user.status }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not users %}
+<div class="alert alert-info text-center">
+    <p>Ingen brukere funnet.</p>
+</div>
+{% endif %}
+{% endblock %}

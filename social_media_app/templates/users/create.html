@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Opprett ny bruker - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Opprett ny bruker</h1>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('create_user') }}" method="post">
+                    <div class="mb-3">
+                        <label for="brukernavn" class="form-label">Brukernavn*</label>
+                        <input type="text" class="form-control" id="brukernavn" name="brukernavn" required
+                               placeholder="Velg et unikt brukernavn">
+                        <small class="text-muted">Brukernavnet må være unikt.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="epost" class="form-label">E-post*</label>
+                        <input type="email" class="form-control" id="epost" name="epost" required
+                               placeholder="din.epost@example.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="passord_hash" class="form-label">Passord*</label>
+                        <input type="password" class="form-control" id="passord_hash" name="passord_hash" required
+                               placeholder="Velg et sikkert passord">
+                        <small class="text-muted">I en produksjonsapplikasjon ville dette passordet bli hashet.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Biografi</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="3"
+                                  placeholder="Fortell litt om deg selv..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="fødselsdato" class="form-label">Fødselsdato</label>
+                        <input type="date" class="form-control" id="fødselsdato" name="fødselsdato">
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('list_users') }}" class="btn btn-outline-secondary">Avbryt</a>
+                        <button type="submit" class="btn btn-primary">Opprett bruker</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

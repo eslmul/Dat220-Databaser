@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Rediger {{ user.brukernavn }} - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Rediger bruker: {{ user.brukernavn }}</h1>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('edit_user', user_id=user.bruker_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="brukernavn" class="form-label">Brukernavn</label>
+                        <input type="text" class="form-control" id="brukernavn" value="{{ user.brukernavn }}" disabled>
+                        <small class="text-muted">Brukernavnet kan ikke endres.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="epost" class="form-label">E-post</label>
+                        <input type="email" class="form-control" id="epost" value="{{ user.epost }}" disabled>
+                        <small class="text-muted">E-postadressen kan ikke endres.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Biografi</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="3"
+                                  placeholder="Fortell litt om deg selv...">{{ user.bio or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="aktiv" {% if user.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
+                            <option value="inaktiv" {% if user.status == 'inaktiv' %}selected{% endif %}>Inaktiv</option>
+                            <option value="suspendert" {% if user.status == 'suspendert' %}selected{% endif %}>Suspendert</option>
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('view_user', user_id=user.bruker_id) }}" class="btn btn-outline-secondary">Avbryt</a>
+                        <button type="submit" class="btn btn-primary">Lagre endringer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

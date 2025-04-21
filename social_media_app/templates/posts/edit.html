@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Rediger innlegg - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h1 class="h3 mb-0">Rediger innlegg</h1>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('edit_post', post_id=post.innlegg_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="innhold" class="form-label">Innhold*</label>
+                        <textarea class="form-control" id="innhold" name="innhold" rows="5" required>{{ post.innhold }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="synlighet" class="form-label">Synlighet*</label>
+                        <select class="form-select" id="synlighet" name="synlighet" required>
+                            <option value="offentlig" {% if post.synlighet == 'offentlig' %}selected{% endif %}>Offentlig</option>
+                            <option value="venner" {% if post.synlighet == 'venner' %}selected{% endif %}>Bare venner</option>
+                            <option value="privat" {% if post.synlighet == 'privat' %}selected{% endif %}>Privat</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tagger</label>
+                        <div class="row">
+                            {% for tag in all_tags %}
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="{{ tag.tag_id }}" 
+                                               id="tag{{ tag.tag_id }}" name="tags"
+                                               {% if tag.tag_id in selected_tag_ids %}checked{% endif %}>
+                                        <label class="form-check-label" for="tag{{ tag.tag_id }}">
+                                            {{ tag.navn }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('view_post', post_id=post.innlegg_id) }}" class="btn btn-outline-secondary">Avbryt</a>
+                        <button type="submit" class="btn btn-success">Lagre endringer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

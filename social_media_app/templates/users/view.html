@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.brukernavn }} - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <div class="mb-3">
+                    {% if user.profilbilde %}
+                        <img src="{{ url_for('static', filename='uploads/' + user.profilbilde) }}" 
+                             alt="{{ user.brukernavn }}" class="rounded-circle img-fluid profile-image" width="150" height="150">
+                    {% else %}
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto profile-placeholder">
+                            <i class="fas fa-user fa-4x text-white"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <h2 class="h3">{{ user.brukernavn }}</h2>
+                <p class="text-muted">
+                    <i class="fas fa-envelope"></i> {{ user.epost }}
+                </p>
+                
+                <div class="d-flex justify-content-around my-4">
+                    <div class="text-center">
+                        <div class="h4">{{ followers }}</div>
+                        <div class="small text-muted">Følgere</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="h4">{{ following }}</div>
+                        <div class="small text-muted">Følger</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="h4">{{ posts|length }}</div>
+                        <div class="small text-muted">Innlegg</div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                    <a href="{{ url_for('show_edit_user', user_id=user.bruker_id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit"></i> Rediger
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+                        <i class="fas fa-trash"></i> Slett
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h3 class="h5 mb-0">Om {{ user.brukernavn }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h4 class="h6">Biografi</h4>
+                            <p>{{ user.bio or 'Ingen biografi lagt til.' }}</p>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <h4 class="h6">Medlem siden</h4>
+                                    <p>{{ user.registrerings_dato.strftime('%d.%m.%Y') }}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <h4 class="h6">Status</h4>
+                                    <p>
+                                        <span class="badge {{ 'bg-success' if user.status == 'aktiv' else 'bg-secondary' }}">
+                                            {{ user.status }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h3 class="h5 mb-0">Siste innlegg</h3>
+                        <a href="{{ url_for('show_create_post') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus"></i> Nytt innlegg
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        {% if posts %}
+                            <div class="list-group">
+                                {% for post in posts %}
+                                <a href="{{ url_for('view_post', post_id=post.innlegg_id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1 text-truncate text-truncate-custom">{{ post.innhold[:50] }}{% if post.innhold|length > 50 %}...{% endif %}</h5>
+                                        <small>{{ post.opprettet_dato.strftime('%d.%m.%Y') }}</small>
+                                    </div>
+                                    <small class="text-muted">
+                                        <span class="badge {{ 'bg-success' if post.synlighet == 'offentlig' else 'bg-warning' }}">
+                                            {{ post.synlighet }}
+                                        </span>
+                                    </small>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-center py-3 text-muted">Ingen innlegg å vise</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Bekreft sletting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Er du sikker på at du vil slette brukeren <strong>{{ user.brukernavn }}</strong>?</p>
+                <p class="text-danger">Dette vil også slette alle brukerens innlegg, kommentarer og andre data.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <form action="{{ url_for('delete_user', user_id=user.bruker_id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Slett bruker</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
