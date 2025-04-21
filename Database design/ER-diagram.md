@@ -81,4 +81,3 @@ erDiagram
     BRUKERE ||--o{ MELDINGER : "mottar"
     INNLEGG ||--o{ INNLEGG_TAGGER : "har"
     TAGGER ||--o{ INNLEGG_TAGGER : "tilknyttet til"
-    
