@@ -10,7 +10,7 @@
                 <h1 class="h3 mb-0">Rediger bruker: {{ user.brukernavn }}</h1>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('edit_user', user_id=user.bruker_id) }}" method="post">
+                <form action="{{ url_for('edit_user', user_id=user.bruker_id) }}" method="post" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="brukernavn" class="form-label">Brukernavn</label>
                         <input type="text" class="form-control" id="brukernavn" value="{{ user.brukernavn }}" disabled>
@@ -21,6 +21,19 @@
                         <label for="epost" class="form-label">E-post</label>
                         <input type="email" class="form-control" id="epost" value="{{ user.epost }}" disabled>
                         <small class="text-muted">E-postadressen kan ikke endres.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="profilbilde" class="form-label">Profilbilde</label>
+                        <div class="mb-2">
+                            {% if user.profilbilde %}
+                                <img src="{{ url_for('static', filename='uploads/' + user.profilbilde) }}" alt="{{ user.brukernavn }}" class="img-thumbnail profile-image" height="150" width="150">
+                            {% else %}
+                                <div class="alert alert-secondary">Ingen profilbilde</div>
+                            {% endif %}
+                        </div>
+                        <input type="file" class="form-control" id="profilbilde" name="profilbilde" accept="image/*">
+                        <small class="text-muted">Last opp et nytt bilde for å erstatte det eksisterende. La feltet være tomt for å beholde nåværende bilde.</small>
                     </div>
                     
                     <div class="mb-3">

@@ -14,8 +14,8 @@
                                 <img src="{{ url_for('static', filename='uploads/' + post.profilbilde) }}" 
                                      alt="{{ post.brukernavn }}" class="rounded-circle" width="50" height="50">
                             {% else %}
-                                <div class="bg-secondary-circle">
-                                    <i class="fas fa-user"></i>
+                                <div class="bg-secondary bg-secondary-circle">
+                                    <i class="fas fa-user text-white"></i>
                                 </div>
                             {% endif %}
                         </div>
@@ -71,13 +71,61 @@
                 </div>
             </div>
         </div>
+
+        <!-- Image Upload Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h3 class="h5 mb-0">Legg til bilde</h3>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('upload_post_image', post_id=post.innlegg_id) }}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Velg bilde</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
+                        <small class="text-muted">Maksimum filstørrelse: 16MB. Tillatte formater: JPG, PNG, GIF.</small>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Last opp bilde
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
         
         <!-- Comments Section -->
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h3 class="h5 mb-0">Kommentarer</h3>
+                <span class="badge bg-secondary">{{ comments|length }}</span>
             </div>
             <div class="card-body">
+                <!-- New Comment Form -->
+                <div class="mb-4 border-bottom pb-4">
+                    <form action="{{ url_for('add_comment', post_id=post.innlegg_id) }}" method="post">
+                        <div class="mb-3">
+                            <label for="bruker_id" class="form-label">Kommenter som</label>
+                            <select class="form-select" id="bruker_id" name="bruker_id" required>
+                                <option value="" selected disabled>Velg bruker</option>
+                                {% for user in users %}
+                                    <option value="{{ user.bruker_id }}">{{ user.brukernavn }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="comment_content" class="form-label">Din kommentar</label>
+                            <textarea class="form-control" id="comment_content" name="innhold" 
+                                      rows="3" required placeholder="Skriv en kommentar..."></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Legg til kommentar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Comments List -->
                 {% if comments %}
                     <div class="comments-list">
                         {% for comment in comments %}
@@ -88,8 +136,8 @@
                                         <img src="{{ url_for('static', filename='uploads/' + comment.profilbilde) }}" 
                                              alt="{{ comment.brukernavn }}" class="rounded-circle" width="40" height="40">
                                     {% else %}
-                                        <div class="bg-secondary-circle">
-                                            <i class="fas fa-user"></i>
+                                        <div class="bg-secondary bg-secondary-circle">
+                                            <i class="fas fa-user text-white"></i>
                                         </div>
                                     {% endif %}
                                 </div>
@@ -99,7 +147,89 @@
                                             <h6 class="mb-0">{{ comment.brukernavn }}</h6>
                                             <small class="text-muted">{{ comment.opprettet_dato.strftime('%d.%m.%Y %H:%M') }}</small>
                                         </div>
-                                        <p class="mb-0">{{ comment.innhold }}</p>
+                                        <p class="mb-2">{{ comment.innhold }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <button class="btn btn-sm btn-link text-decoration-none p-0 reply-button" 
+                                                    data-comment-id="{{ comment.kommentar_id }}" 
+                                                    data-username="{{ comment.brukernavn }}">
+                                                <i class="fas fa-reply"></i> Svar
+                                            </button>
+                                            <form action="{{ url_for('delete_comment', comment_id=comment.kommentar_id, post_id=post.innlegg_id) }}" 
+                                                  method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0"
+                                                        onclick="return confirm('Er du sikker på at du vil slette denne kommentaren?')">
+                                                    <i class="fas fa-trash-alt"></i> Slett
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Replies Section -->
+                                    {% if comment.replies %}
+                                        <div class="replies ms-4 mt-3">
+                                            {% for reply in comment.replies %}
+                                            <div class="reply mb-3">
+                                                <div class="d-flex">
+                                                    <div class="me-3">
+                                                        {% if reply.profilbilde %}
+                                                            <img src="{{ url_for('static', filename='uploads/' + reply.profilbilde) }}" 
+                                                                alt="{{ reply.brukernavn }}" class="rounded-circle" width="30" height="30">
+                                                        {% else %}
+                                                            <div class="bg-secondary bg-secondary-circle">
+                                                                <i class="fas fa-user text-white small"></i>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="flex-grow-1">
+                                                        <div class="bg-light rounded p-3">
+                                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                <h6 class="mb-0">{{ reply.brukernavn }}</h6>
+                                                                <small class="text-muted">{{ reply.opprettet_dato.strftime('%d.%m.%Y %H:%M') }}</small>
+                                                            </div>
+                                                            <p class="mb-2">{{ reply.innhold }}</p>
+                                                            <div class="text-end">
+                                                                <form action="{{ url_for('delete_comment', comment_id=reply.kommentar_id, post_id=post.innlegg_id) }}" 
+                                                                      method="post" class="d-inline">
+                                                                    <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0"
+                                                                            onclick="return confirm('Er du sikker på at du vil slette denne kommentaren?')">
+                                                                        <i class="fas fa-trash-alt"></i> Slett
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Reply Form (hidden by default) -->
+                                    <div class="reply-form ms-4 mt-3 d-none" id="replyForm{{ comment.kommentar_id }}">
+                                        <form action="{{ url_for('add_reply', post_id=post.innlegg_id, parent_id=comment.kommentar_id) }}" method="post">
+                                            <div class="mb-3">
+                                                <label for="reply_user_id{{ comment.kommentar_id }}" class="form-label">Svar som</label>
+                                                <select class="form-select" id="reply_user_id{{ comment.kommentar_id }}" name="bruker_id" required>
+                                                    <option value="" selected disabled>Velg bruker</option>
+                                                    {% for user in users %}
+                                                        <option value="{{ user.bruker_id }}">{{ user.brukernavn }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <textarea class="form-control" name="innhold" rows="2" required
+                                                          placeholder="Skriv et svar til {{ comment.brukernavn }}..."></textarea>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary cancel-reply"
+                                                        data-comment-id="{{ comment.kommentar_id }}">
+                                                    Avbryt
+                                                </button>
+                                                <button type="submit" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-paper-plane"></i> Send svar
+                                                </button>
+                                            </div>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -107,7 +237,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-center py-3">Ingen kommentarer ennå.</p>
+                    <p class="text-center py-3 text-muted">Ingen kommentarer ennå. Bli den første til å kommentere!</p>
                 {% endif %}
             </div>
         </div>
@@ -135,4 +265,37 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Reply functionality
+        const replyButtons = document.querySelectorAll('.reply-button');
+        const cancelButtons = document.querySelectorAll('.cancel-reply');
+        
+        replyButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const commentId = this.getAttribute('data-comment-id');
+                const replyForm = document.getElementById('replyForm' + commentId);
+                
+                // Hide all other reply forms
+                document.querySelectorAll('.reply-form').forEach(form => {
+                    form.classList.add('d-none');
+                });
+                
+                // Show this reply form
+                replyForm.classList.remove('d-none');
+            });
+        });
+        
+        cancelButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const commentId = this.getAttribute('data-comment-id');
+                const replyForm = document.getElementById('replyForm' + commentId);
+                replyForm.classList.add('d-none');
+            });
+        });
+    });
+</script>
 {% endblock %}

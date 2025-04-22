@@ -1,10 +1,142 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from db_config import Database, init_db, add_sample_data
+from import_sql_sample_data import import_sql_sample_data
+from werkzeug.utils import secure_filename
+import uuid
 import os
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For flash messages and sessions
+
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB maks filstørrelse
+
+# Opprett upload-mappen hvis den ikke finnes
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Hjelpefunksjon for å sjekke tillatte filtyper
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Hjelpefunksjon for å håndtere bildeopplasting
+def handle_image_upload(file, old_filename=None):
+    if file and file.filename and allowed_file(file.filename):
+        # Fjern gammel fil hvis en ny lastes opp
+        if old_filename and old_filename != 'default.jpg':
+            old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+            if os.path.exists(old_file_path):
+                try:
+                    os.remove(old_file_path)
+                except Exception:
+                    pass  # Ignorerer feil ved sletting av gammel fil
+                
+        # Generer et unikt filnavn for å unngå kollisjoner
+        filename = secure_filename(file.filename)
+        file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # Lagre filen
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(file_path)
+        
+        return unique_filename
+    
+    # Returner gammel filnavn hvis ingen ny fil ble lastet opp
+    return old_filename
+
+# Modifiser CREATE - Process user creation for å støtte bildeopplasting
+@app.route('/users/create', methods=['POST'])
+def create_user():
+    username = request.form['brukernavn']
+    email = request.form['epost']
+    password_hash = request.form['passord_hash']  # In a real app, you'd hash this
+    bio = request.form['bio']
+    birth_date = request.form['fødselsdato'] if request.form['fødselsdato'] else None
+    
+    # Håndter profilbilde-opplasting
+    profile_image = None
+    if 'profilbilde' in request.files:
+        profile_image = handle_image_upload(request.files['profilbilde'])
+    
+    try:
+        with Database() as db:
+            user_id = db.execute(
+                "INSERT INTO BRUKERE (brukernavn, epost, passord_hash, profilbilde, bio, fødselsdato, status) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'aktiv')",
+                (username, email, password_hash, profile_image, bio, birth_date)
+            )
+        flash('User created successfully!', 'success')
+        return redirect(url_for('view_user', user_id=user_id))
+    except Exception as e:
+        flash(f'Error creating user: {str(e)}', 'danger')
+        return render_template('users/create.html')
+
+# Modifiser UPDATE - Process user update for å støtte bildeopplasting
+@app.route('/users/<int:user_id>/edit', methods=['POST'])
+def edit_user(user_id):
+    with Database() as db:
+        # Check if user exists
+        user = db.fetchone("SELECT * FROM BRUKERE WHERE bruker_id = ?", (user_id,))
+        if not user:
+            flash('User not found', 'danger')
+            return redirect(url_for('list_users'))
+        
+        bio = request.form['bio']
+        status = request.form['status']
+        
+        # Håndter profilbilde-opplasting
+        profile_image = user['profilbilde']  # Default til eksisterende bilde
+        if 'profilbilde' in request.files and request.files['profilbilde'].filename:
+            profile_image = handle_image_upload(request.files['profilbilde'], old_filename=profile_image)
+        
+        # Update user data
+        db.execute(
+            "UPDATE BRUKERE SET bio = ?, status = ?, profilbilde = ? WHERE bruker_id = ?",
+            (bio, status, profile_image, user_id)
+        )
+        
+    flash('User updated successfully!', 'success')
+    return redirect(url_for('view_user', user_id=user_id))
+
+# Legg til route for bildeopplasting til innlegg
+@app.route('/posts/<int:post_id>/upload_image', methods=['POST'])
+def upload_post_image(post_id):
+    try:
+        with Database() as db:
+            # Sjekk om innlegget eksisterer
+            post = db.fetchone("SELECT * FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
+            if not post:
+                flash('Post not found', 'danger')
+                return redirect(url_for('list_posts'))
+            
+            # Håndter bildeopplasting
+            if 'image' in request.files:
+                image_filename = handle_image_upload(request.files['image'])
+                if image_filename:
+                    # Legg til bildestien i innleggsinnholdet
+                    updated_content = post['innhold'] + f'\n\n<img src="/static/uploads/{image_filename}" class="img-fluid rounded" alt="Post image">'
+                    
+                    # Oppdater innlegget
+                    db.execute(
+                        "UPDATE INNLEGG SET innhold = ?, oppdatert_dato = datetime('now') WHERE innlegg_id = ?",
+                        (updated_content, post_id)
+                    )
+                    
+                    flash('Image uploaded and added to post', 'success')
+                else:
+                    flash('Invalid file type or upload failed', 'danger')
+            else:
+                flash('No file selected', 'warning')
+                
+        return redirect(url_for('view_post', post_id=post_id))
+    except Exception as e:
+        flash(f'Error uploading image: {str(e)}', 'danger')
+        return redirect(url_for('view_post', post_id=post_id))
 
 # Helper function to convert SQLite rows to dictionaries with proper datetime objects
 def format_date_fields(item, date_fields=None):
@@ -36,7 +168,25 @@ def format_date_fields(item, date_fields=None):
 # Initialize database on startup
 def initialize_database():
     init_db()
-    add_sample_data()
+    
+    # Sjekk antall brukere, og hvis det er færre enn 10, legg til testdata
+    with Database() as db:
+        user_count = db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")
+        if not user_count or user_count['count'] < 10:
+            try:
+                # Prøv først den eksisterende add_sample_data funksjonen
+                add_sample_data()
+                
+                # Sjekk om det nå er minst 10 brukere
+                user_count = db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")
+                if not user_count or user_count['count'] < 10:
+                    # Hvis fortsatt mindre enn 10, prøv å importere fra SQL-fil
+                    print("Importerer testdata fra SQL-fil...")
+                    import_sql_sample_data()
+            except Exception as e:
+                print(f"Feil ved initialisering av testdata: {e}")
+                # Prøv å importere fra SQL-fil som fallback
+                import_sql_sample_data()
 
 # Call initialization function during startup
 with app.app_context():
@@ -96,26 +246,7 @@ def show_create_user():
     return render_template('users/create.html')
 
 # CREATE - Process user creation
-@app.route('/users/create', methods=['POST'])
-def create_user():
-    username = request.form['brukernavn']
-    email = request.form['epost']
-    password_hash = request.form['passord_hash']  # In a real app, you'd hash this
-    bio = request.form['bio']
-    birth_date = request.form['fødselsdato'] if request.form['fødselsdato'] else None
-    
-    try:
-        with Database() as db:
-            user_id = db.execute(
-                "INSERT INTO BRUKERE (brukernavn, epost, passord_hash, bio, fødselsdato, status) "
-                "VALUES (?, ?, ?, ?, ?, 'aktiv')",
-                (username, email, password_hash, bio, birth_date)
-            )
-        flash('User created successfully!', 'success')
-        return redirect(url_for('view_user', user_id=user_id))
-    except Exception as e:
-        flash(f'Error creating user: {str(e)}', 'danger')
-        return render_template('users/create.html')
+# Duplicate function removed to resolve redefinition error.
 
 # UPDATE - Show user edit form
 @app.route('/users/<int:user_id>/edit', methods=['GET'])
@@ -129,26 +260,7 @@ def show_edit_user(user_id):
     return redirect(url_for('list_users'))
 
 # UPDATE - Process user update
-@app.route('/users/<int:user_id>/edit', methods=['POST'])
-def edit_user(user_id):
-    with Database() as db:
-        # Check if user exists
-        user = db.fetchone("SELECT * FROM BRUKERE WHERE bruker_id = ?", (user_id,))
-        if not user:
-            flash('User not found', 'danger')
-            return redirect(url_for('list_users'))
-        
-        bio = request.form['bio']
-        status = request.form['status']
-        
-        # Update user data
-        db.execute(
-            "UPDATE BRUKERE SET bio = ?, status = ? WHERE bruker_id = ?",
-            (bio, status, user_id)
-        )
-        
-    flash('User updated successfully!', 'success')
-    return redirect(url_for('view_user', user_id=user_id))
+# Duplicate function removed to resolve redefinition error.
 
 # DELETE - Delete user
 @app.route('/users/<int:user_id>/delete', methods=['POST'])
@@ -162,16 +274,96 @@ def delete_user(user_id):
 # READ - List all posts
 @app.route('/posts')
 def list_posts():
-    with Database() as db:
-        # Join with users to get username
-        posts = db.fetchall("""
-            SELECT i.*, b.brukernavn 
-            FROM INNLEGG i 
-            JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
-            ORDER BY i.opprettet_dato DESC
-        """)
-        posts = [format_date_fields(post, ['opprettet_dato', 'oppdatert_dato']) for post in posts]
-    return render_template('posts/list.html', posts=posts)
+    try:
+        print("Henter innlegg...")
+        with Database() as db:
+            # Sjekk om det finnes innlegg i databasen
+            post_count = db.fetchone("SELECT COUNT(*) as count FROM INNLEGG")
+            print(f"Fant {post_count['count'] if post_count else 0} innlegg i databasen")
+            
+            if not post_count or post_count['count'] == 0:
+                print("Ingen innlegg funnet i databasen")
+                flash('Ingen innlegg funnet i databasen. Prøv å importere testdata.', 'info')
+                return render_template('posts/list.html', posts=[])
+            
+            # Skriv ut detaljer om de første 3 innleggene for feilsøking
+            test_posts = db.fetchall("SELECT * FROM INNLEGG LIMIT 3")
+            for i, post in enumerate(test_posts):
+                print(f"Debug - Innlegg {i+1}: ID={post['innlegg_id']}, Bruker={post['bruker_id']}")
+            
+            # Test at bruker-innlegg relasjonen fungerer
+            test_join = db.fetchall("""
+                SELECT i.innlegg_id, i.bruker_id, b.brukernavn 
+                FROM INNLEGG i 
+                LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
+                LIMIT 3
+            """)
+            for i, post in enumerate(test_join):
+                print(f"Debug - Join {i+1}: Innlegg={post['innlegg_id']}, Bruker ID={post['bruker_id']}, Brukernavn={post.get('brukernavn', 'MANGLER!')}")
+            
+            # Hent alle innlegg med brukerinfo med LEFT JOIN istedenfor INNER JOIN
+            posts = db.fetchall("""
+                SELECT i.*, b.brukernavn 
+                FROM INNLEGG i 
+                LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
+                ORDER BY i.opprettet_dato DESC
+            """)
+            
+            # Ekstra feilsøking-informasjon
+            print(f"Spørringen returnerte {len(posts)} innlegg")
+            
+            # Formater dato-felt og utfør feilsjekking
+            formatted_posts = []
+            for post in posts:
+                try:
+                    post_dict = dict(post)
+                    
+                    # Sjekk om bruker eksisterer
+                    if not post_dict.get('brukernavn'):
+                        print(f"Advarsel: Innlegg {post_dict.get('innlegg_id')} har ingen tilknyttet bruker (bruker_id: {post_dict.get('bruker_id')})")
+                        # Legg til en placeholder hvis bruker mangler
+                        post_dict['brukernavn'] = f"Ukjent (ID: {post_dict.get('bruker_id', 'mangler')})"
+                    
+                    # Formater datoer
+                    for date_field in ['opprettet_dato', 'oppdatert_dato']:
+                        if date_field in post_dict and post_dict[date_field]:
+                            try:
+                                if isinstance(post_dict[date_field], str):
+                                    # Parse the date string into a datetime object
+                                    if 'T' in post_dict[date_field]:  # ISO format
+                                        post_dict[date_field] = datetime.fromisoformat(post_dict[date_field].replace('Z', '+00:00'))
+                                    else:  # SQLite default format
+                                        post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d %H:%M:%S')
+                            except (ValueError, TypeError) as e:
+                                print(f"Advarsel: Dato-parsing feilet for {date_field}: {post_dict[date_field]} - {e}")
+                                # Try one more format
+                                try:
+                                    post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d')
+                                except Exception as e:
+                                    print(f"Advarsel: Dato-parsing feilet for {date_field}: {post_dict[date_field]} - {e}")
+                                    # Keep the original if all parsing fails
+                                    pass
+                    
+                    formatted_posts.append(post_dict)
+                except Exception as e:
+                    print(f"Feil ved formatering av innlegg: {e}")
+                    # Fortsett med neste innlegg
+            
+            print(f"Formatert {len(formatted_posts)} innlegg for visning")
+            
+            if not formatted_posts:
+                print("ADVARSEL: Ingen formaterte innlegg!")
+                flash('Feil ved formatering av innlegg. Sjekk serverloggen.', 'warning')
+            
+            return render_template('posts/list.html', posts=formatted_posts)
+            
+    except Exception as e:
+        # Logger feilen og viser en melding til brukeren
+        import traceback
+        print(f"Feil ved henting av innlegg: {e}")
+        print(traceback.format_exc())
+        flash(f'En feil oppstod ved henting av innlegg: {str(e)}', 'danger')
+        return render_template('posts/list.html', posts=[])
 
 # READ - View single post with comments
 @app.route('/posts/<int:post_id>')
@@ -196,10 +388,21 @@ def view_post(post_id):
             SELECT k.*, b.brukernavn, b.profilbilde
             FROM KOMMENTARER k
             JOIN BRUKERE b ON k.bruker_id = b.bruker_id
-            WHERE k.innlegg_id = ?
+            WHERE k.innlegg_id = ? AND k.forelder_kommentar_id IS NULL
             ORDER BY k.opprettet_dato ASC
         """, (post_id,))
         comments = [format_date_fields(comment, ['opprettet_dato']) for comment in comments]
+        
+        # Get replies for each comment
+        for comment in comments:
+            replies = db.fetchall("""
+                SELECT k.*, b.brukernavn, b.profilbilde
+                FROM KOMMENTARER k
+                JOIN BRUKERE b ON k.bruker_id = b.bruker_id
+                WHERE k.forelder_kommentar_id = ?
+                ORDER BY k.opprettet_dato ASC
+            """, (comment['kommentar_id'],))
+            comment['replies'] = [format_date_fields(reply, ['opprettet_dato']) for reply in replies]
         
         # Get tags for this post
         tags = db.fetchall("""
@@ -217,8 +420,15 @@ def view_post(post_id):
             GROUP BY reaksjon_type
         """, (post_id,))
         
+        # Get all users for the comment form
+        users = db.fetchall("""
+            SELECT bruker_id, brukernavn FROM BRUKERE
+            WHERE status = 'aktiv'
+            ORDER BY brukernavn
+        """)
+        
         return render_template('posts/view.html', post=post, comments=comments, 
-                               tags=tags, reactions=reactions)
+                               tags=tags, reactions=reactions, users=users)
 
 # CREATE - Show post creation form
 @app.route('/posts/create', methods=['GET'])
@@ -380,6 +590,87 @@ def delete_post(post_id):
         db.execute("DELETE FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
     flash('Post deleted successfully!', 'success')
     return redirect(url_for('list_posts'))
+
+# Add a new comment to a post
+@app.route('/posts/<int:post_id>/comments/add', methods=['POST'])
+def add_comment(post_id):
+    bruker_id = request.form['bruker_id']
+    innhold = request.form['innhold']
+    
+    try:
+        with Database() as db:
+            # Check if post exists
+            post = db.fetchone("SELECT * FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
+            if not post:
+                flash('Innlegg ikke funnet', 'danger')
+                return redirect(url_for('list_posts'))
+                
+            # Insert comment
+            db.execute(
+                "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
+                "VALUES (?, datetime('now'), ?, ?, NULL)",
+                (innhold, post_id, bruker_id)
+            )
+            
+        flash('Kommentar lagt til', 'success')
+    except Exception as e:
+        flash(f'Feil ved oppretting av kommentar: {str(e)}', 'danger')
+    
+    return redirect(url_for('view_post', post_id=post_id))
+
+# Add a reply to a comment
+@app.route('/posts/<int:post_id>/comments/<int:parent_id>/reply', methods=['POST'])
+def add_reply(post_id, parent_id):
+    bruker_id = request.form['bruker_id']
+    innhold = request.form['innhold']
+    
+    try:
+        with Database() as db:
+            # Check if parent comment exists
+            parent_comment = db.fetchone(
+                "SELECT * FROM KOMMENTARER WHERE kommentar_id = ? AND innlegg_id = ?", 
+                (parent_id, post_id)
+            )
+            
+            if not parent_comment:
+                flash('Opprinnelig kommentar ikke funnet', 'danger')
+                return redirect(url_for('view_post', post_id=post_id))
+                
+            # Insert reply
+            db.execute(
+                "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
+                "VALUES (?, datetime('now'), ?, ?, ?)",
+                (innhold, post_id, bruker_id, parent_id)
+            )
+            
+        flash('Svar lagt til', 'success')
+    except Exception as e:
+        flash(f'Feil ved oppretting av svar: {str(e)}', 'danger')
+    
+    return redirect(url_for('view_post', post_id=post_id))
+
+# Delete a comment (or reply)
+@app.route('/comments/<int:comment_id>/delete/<int:post_id>', methods=['POST'])
+def delete_comment(comment_id, post_id):
+    try:
+        with Database() as db:
+            # Check if comment exists
+            comment = db.fetchone("SELECT * FROM KOMMENTARER WHERE kommentar_id = ?", (comment_id,))
+            if not comment:
+                flash('Kommentar ikke funnet', 'danger')
+                return redirect(url_for('view_post', post_id=post_id))
+                
+            # Also delete any child comments (replies)
+            db.execute("DELETE FROM KOMMENTARER WHERE forelder_kommentar_id = ?", (comment_id,))
+            
+            # Delete the comment itself
+            db.execute("DELETE FROM KOMMENTARER WHERE kommentar_id = ?", (comment_id,))
+            
+        flash('Kommentar slettet', 'success')
+    except Exception as e:
+        flash(f'Feil ved sletting av kommentar: {str(e)}', 'danger')
+    
+    return redirect(url_for('view_post', post_id=post_id))
 
 @app.route('/popular_posts')
 def popular_posts():
@@ -557,7 +848,7 @@ def search():
     if where_clauses:
         base_query += " WHERE " + " AND ".join(where_clauses)
     
-    # Add group by and order by
+# Add group by and order by
     base_query += " GROUP BY i.innlegg_id ORDER BY i.opprettet_dato DESC"
     
     # Get search results
@@ -585,6 +876,125 @@ def search():
                               'visibility': visibility,
                               'search_term': search_term
                           })
+
+# Route for tag management
+@app.route('/tags')
+def manage_tags():
+    with Database() as db:
+        # Get all tags with count of posts using each tag
+        tags = db.fetchall("""
+            SELECT 
+                t.tag_id, 
+                t.navn, 
+                t.beskrivelse,
+                COUNT(it.innlegg_id) AS post_count
+            FROM TAGGER t
+            LEFT JOIN INNLEGG_TAGGER it ON t.tag_id = it.tag_id
+            GROUP BY t.tag_id
+            ORDER BY t.navn
+        """)
+    return render_template('tags/manage.html', tags=tags)
+
+# CREATE - Process tag creation
+@app.route('/tags/create', methods=['POST'])
+def create_tag():
+    navn = request.form['navn']
+    beskrivelse = request.form['beskrivelse']
+    
+    try:
+        with Database() as db:
+            # Check if tag already exists
+            existing_tag = db.fetchone(
+                "SELECT tag_id FROM TAGGER WHERE navn = ?",
+                (navn,)
+            )
+            
+            if existing_tag:
+                flash(f'En tagg med navnet "{navn}" finnes allerede.', 'warning')
+                return redirect(url_for('manage_tags'))
+                
+            # Insert new tag
+            db.execute(
+                "INSERT INTO TAGGER (navn, beskrivelse) VALUES (?, ?)",
+                (navn, beskrivelse)
+            )
+            
+        flash(f'Taggen "{navn}" ble opprettet.', 'success')
+    except Exception as e:
+        flash(f'Feil ved oppretting av tagg: {str(e)}', 'danger')
+    
+    return redirect(url_for('manage_tags'))
+
+# UPDATE - Process tag update
+@app.route('/tags/<int:tag_id>/edit', methods=['POST'])
+def edit_tag(tag_id):
+    navn = request.form['navn']
+    beskrivelse = request.form['beskrivelse']
+    
+    try:
+        with Database() as db:
+            # Check if tag exists
+            tag = db.fetchone("SELECT * FROM TAGGER WHERE tag_id = ?", (tag_id,))
+            if not tag:
+                flash('Taggen ble ikke funnet.', 'danger')
+                return redirect(url_for('manage_tags'))
+            
+            # Check if new name already exists (but skip if it's the same tag)
+            existing_tag = db.fetchone(
+                "SELECT tag_id FROM TAGGER WHERE navn = ? AND tag_id != ?",
+                (navn, tag_id)
+            )
+            
+            if existing_tag:
+                flash(f'En tagg med navnet "{navn}" finnes allerede.', 'warning')
+                return redirect(url_for('manage_tags'))
+                
+            # Update tag
+            db.execute(
+                "UPDATE TAGGER SET navn = ?, beskrivelse = ? WHERE tag_id = ?",
+                (navn, beskrivelse, tag_id)
+            )
+            
+        flash(f'Taggen "{navn}" ble oppdatert.', 'success')
+    except Exception as e:
+        flash(f'Feil ved oppdatering av tagg: {str(e)}', 'danger')
+    
+    return redirect(url_for('manage_tags'))
+
+# DELETE - Process tag deletion
+@app.route('/tags/<int:tag_id>/delete', methods=['POST'])
+def delete_tag(tag_id):
+    try:
+        with Database() as db:
+            # Get tag info for feedback message
+            tag = db.fetchone("SELECT * FROM TAGGER WHERE tag_id = ?", (tag_id,))
+            if not tag:
+                flash('Taggen ble ikke funnet.', 'danger')
+                return redirect(url_for('manage_tags'))
+            
+            # Get post count for this tag (for log purposes)
+            post_count = db.fetchone(
+                "SELECT COUNT(*) as count FROM INNLEGG_TAGGER WHERE tag_id = ?", 
+                (tag_id,)
+            )
+            
+            # Remove tag associations from posts
+            db.execute("DELETE FROM INNLEGG_TAGGER WHERE tag_id = ?", (tag_id,))
+            
+            # Delete the tag itself
+            db.execute("DELETE FROM TAGGER WHERE tag_id = ?", (tag_id,))
+            
+            removed_from = post_count['count'] if post_count else 0
+            
+            if removed_from > 0:
+                flash(f'Taggen "{tag["navn"]}" ble slettet og fjernet fra {removed_from} innlegg.', 'success')
+            else:
+                flash(f'Taggen "{tag["navn"]}" ble slettet.', 'success')
+                
+    except Exception as e:
+        flash(f'Feil ved sletting av tagg: {str(e)}', 'danger')
+    
+    return redirect(url_for('manage_tags'))
 
 # Route for tag popularity analysis
 @app.route('/tag_analysis')
@@ -625,5 +1035,19 @@ def activity_by_month():
             ORDER BY måned DESC
         """)
     return render_template('analytics/activity_by_month.html', months=months)
+
+@app.route('/import_sample_data', methods=['GET'])
+def import_sample_data_endpoint():
+    try:
+        success = import_sql_sample_data()
+        if success:
+            flash('Testdata er importert!', 'success')
+        else:
+            flash('Kunne ikke importere testdata.', 'danger')
+    except Exception as e:
+        flash(f'Feil ved import av testdata: {str(e)}', 'danger')
+    
+    return redirect(url_for('index'))
+
 if __name__ == '__main__':
     app.run(debug=True)
