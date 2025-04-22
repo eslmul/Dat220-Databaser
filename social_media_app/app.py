@@ -235,6 +235,7 @@ def create_post():
     content = request.form['innhold']
     visibility = request.form['synlighet']
     tag_ids = request.form.getlist('tags')  # Get list of selected tag IDs
+    new_tags = request.form.get('new_tags', '')  # Get new tags string
     
     try:
         with Database() as db:
@@ -245,12 +246,40 @@ def create_post():
                 (content, visibility, user_id)
             )
             
-            # Insert tags if any selected
+            # Process existing tags if any selected
             for tag_id in tag_ids:
                 db.execute(
                     "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
                     (post_id, tag_id)
                 )
+            
+            # Process new tags if any provided
+            if new_tags:
+                # Split by comma and strip whitespace
+                tag_names = [tag.strip() for tag in new_tags.split(',') if tag.strip()]
+                
+                for tag_name in tag_names:
+                    # Check if tag already exists
+                    existing_tag = db.fetchone(
+                        "SELECT tag_id FROM TAGGER WHERE navn = ?",
+                        (tag_name,)
+                    )
+                    
+                    if existing_tag:
+                        # Use existing tag if it exists
+                        tag_id = existing_tag['tag_id']
+                    else:
+                        # Create new tag if it doesn't exist
+                        tag_id = db.execute(
+                            "INSERT INTO TAGGER (navn, beskrivelse) VALUES (?, ?)",
+                            (tag_name, f"Tag opprettet for innlegg {post_id}")
+                        )
+                    
+                    # Link tag to post
+                    db.execute(
+                        "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
+                        (post_id, tag_id)
+                    )
                 
         flash('Post created successfully!', 'success')
         return redirect(url_for('view_post', post_id=post_id))
@@ -290,6 +319,7 @@ def edit_post(post_id):
     content = request.form['innhold']
     visibility = request.form['synlighet']
     tag_ids = request.form.getlist('tags')  # Get list of selected tag IDs
+    new_tags = request.form.get('new_tags', '')  # Get new tags string
     
     try:
         with Database() as db:
@@ -302,12 +332,40 @@ def edit_post(post_id):
             # Delete all existing tag associations
             db.execute("DELETE FROM INNLEGG_TAGGER WHERE innlegg_id = ?", (post_id,))
             
-            # Insert new tag associations
+            # Insert existing tag associations
             for tag_id in tag_ids:
                 db.execute(
                     "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
                     (post_id, tag_id)
                 )
+            
+            # Process new tags if any provided
+            if new_tags:
+                # Split by comma and strip whitespace
+                tag_names = [tag.strip() for tag in new_tags.split(',') if tag.strip()]
+                
+                for tag_name in tag_names:
+                    # Check if tag already exists
+                    existing_tag = db.fetchone(
+                        "SELECT tag_id FROM TAGGER WHERE navn = ?",
+                        (tag_name,)
+                    )
+                    
+                    if existing_tag:
+                        # Use existing tag if it exists
+                        tag_id = existing_tag['tag_id']
+                    else:
+                        # Create new tag if it doesn't exist
+                        tag_id = db.execute(
+                            "INSERT INTO TAGGER (navn, beskrivelse) VALUES (?, ?)",
+                            (tag_name, f"Tag opprettet for innlegg {post_id}")
+                        )
+                    
+                    # Link tag to post
+                    db.execute(
+                        "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
+                        (post_id, tag_id)
+                    )
                 
         flash('Post updated successfully!', 'success')
         return redirect(url_for('view_post', post_id=post_id))

@@ -37,7 +37,7 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Tagger</label>
+                        <label class="form-label">Eksisterende tagger</label>
                         <div class="row">
                             {% for tag in tags %}
                                 <div class="col-md-4 mb-2">
@@ -50,6 +50,15 @@
                                     </div>
                                 </div>
                             {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_tags" class="form-label">Legg til nye tagger</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="new_tags" name="new_tags" 
+                                   placeholder="Skriv inn tagger adskilt med komma (f.eks. natur, reise, mat)">
+                            <div class="form-text"></div>
                         </div>
                     </div>
                     
