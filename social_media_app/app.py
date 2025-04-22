@@ -42,10 +42,24 @@ def initialize_database():
 with app.app_context():
     initialize_database()
 
-# Routes for Users (BRUKERE)
 @app.route('/')
 def index():
-    return render_template('index.html')
+    with Database() as db:
+        newest_posts = db.fetchall("""
+            SELECT i.*, b.brukernavn 
+            FROM INNLEGG i 
+            JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
+            ORDER BY i.opprettet_dato DESC LIMIT 5
+        """)
+        newest_posts = [format_date_fields(post, ['opprettet_dato', 'oppdatert_dato']) for post in newest_posts]
+        
+        newest_users = db.fetchall("""
+            SELECT * FROM BRUKERE
+            ORDER BY registrerings_dato DESC LIMIT 5
+        """)
+        newest_users = [format_date_fields(user, ['registrerings_dato', 'fødselsdato']) for user in newest_users]
+    
+    return render_template('index.html', newest_posts=newest_posts, newest_users=newest_users)
 
 # READ - List all users
 @app.route('/users')
@@ -309,7 +323,6 @@ def delete_post(post_id):
     flash('Post deleted successfully!', 'success')
     return redirect(url_for('list_posts'))
 
-# Route for displaying popular posts with tag info
 @app.route('/popular_posts')
 def popular_posts():
     with Database() as db:
@@ -333,7 +346,7 @@ def popular_posts():
             LEFT JOIN KOMMENTARER k ON i.innlegg_id = k.innlegg_id
             WHERE i.synlighet = 'offentlig'
             GROUP BY i.innlegg_id, t.tag_id
-            ORDER BY antall_reaksjoner DESC, opprettet_dato DESC
+            ORDER BY antall_reaksjoner DESC, i.opprettet_dato DESC
             LIMIT 10
         """)
         posts = [format_date_fields(post, ['opprettet_dato']) for post in posts]

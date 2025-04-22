@@ -1,4 +1,9 @@
-<div class="row justify-content-center mt-5">
+{% extends "base.html" %}
+
+{% block title %}Hjem - SoMe Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
     <div class="col-md-12">
         <div class="card shadow-sm">
             <div class="card-header bg-light">
@@ -88,3 +93,73 @@
         </div>
     </div>
 </div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h2 class="h4 mb-0">Siste aktivitet</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Nyeste innlegg</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for post in newest_posts %}
+                                    <a href="{{ url_for('view_post', post_id=post.innlegg_id) }}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ post.brukernavn }}</h6>
+                                            <small>{{ post.opprettet_dato.strftime('%d.%m.%Y') }}</small>
+                                        </div>
+                                        <p class="mb-1 text-truncate">{{ post.innhold }}</p>
+                                    </a>
+                                    {% else %}
+                                    <div class="list-group-item text-center text-muted">
+                                        Ingen innlegg funnet
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="card-footer text-center">
+                                <a href="{{ url_for('list_posts') }}" class="btn btn-sm btn-outline-primary">Se alle innlegg</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Nyeste brukere</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for user in newest_users %}
+                                    <a href="{{ url_for('view_user', user_id=user.bruker_id) }}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ user.brukernavn }}</h6>
+                                            <small>Medlem siden {{ user.registrerings_dato.strftime('%d.%m.%Y') }}</small>
+                                        </div>
+                                        <p class="mb-1 text-truncate">{{ user.bio }}</p>
+                                    </a>
+                                    {% else %}
+                                    <div class="list-group-item text-center text-muted">
+                                        Ingen brukere funnet
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="card-footer text-center">
+                                <a href="{{ url_for('list_users') }}" class="btn btn-sm btn-outline-primary">Se alle brukere</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
