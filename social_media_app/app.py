@@ -326,48 +326,12 @@ def delete_user(user_id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('list_users'))
 
+
 @app.route('/posts')
 def list_posts():
     try:
-        print("Henter innlegg...")
         with Database() as db:
-            # Sjekk om det finnes innlegg i databasen
-            post_count = db.fetchone("SELECT COUNT(*) as count FROM INNLEGG")
-            print(f"Fant {post_count['count'] if post_count else 0} innlegg i databasen")
-            
-            if not post_count or post_count['count'] == 0:
-                print("Ingen innlegg funnet i databasen")
-                flash('Ingen innlegg funnet i databasen. Prøv å importere testdata.', 'info')
-                return render_template('posts/list.html', posts=[])
-            
-            # Fiks problemer med brukere og innlegg
-            try:
-                # Sjekk om det finnes "hengende" innlegg med ugyldige bruker-IDer
-                invalid_posts = db.fetchall("""
-                    SELECT i.innlegg_id, i.bruker_id
-                    FROM INNLEGG i
-                    LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id
-                    WHERE b.bruker_id IS NULL
-                """)
-                
-                if invalid_posts:
-                    print(f"Fant {len(invalid_posts)} innlegg med ugyldige bruker-referanser")
-                    # Du kan enten slette disse innleggene ELLER oppdatere dem til en gyldig bruker
-                    for post in invalid_posts:
-                        # Oppdater til den første gyldige brukeren i systemet
-                        valid_user = db.fetchone("SELECT bruker_id FROM BRUKERE LIMIT 1")
-                        if valid_user:
-                            print(f"Oppdaterer innlegg {post['innlegg_id']} fra ugyldig bruker {post['bruker_id']} til gyldig bruker {valid_user['bruker_id']}")
-                            db.execute("UPDATE INNLEGG SET bruker_id = ? WHERE innlegg_id = ?", 
-                                      (valid_user['bruker_id'], post['innlegg_id']))
-                        else:
-                            # Hvis ingen gyldige brukere finnes, slett innlegget
-                            print(f"Sletter innlegg {post['innlegg_id']} med ugyldig bruker {post['bruker_id']}")
-                            db.execute("DELETE FROM INNLEGG WHERE innlegg_id = ?", (post['innlegg_id'],))
-            except Exception as e:
-                print(f"Feil ved fiksing av innlegg-bruker-relasjoner: {e}")
-            
-            # Hent alle innlegg med brukerinfo på nytt, nå med garantert gyldige brukere
+            # Get all posts with user info
             posts = db.fetchall("""
                 SELECT i.*, b.brukernavn 
                 FROM INNLEGG i 
@@ -375,45 +339,104 @@ def list_posts():
                 ORDER BY i.opprettet_dato DESC
             """)
             
-            print(f"Spørringen returnerte {len(posts)} innlegg")
-            
-            # Formater dato-felt
+            # Format date fields properly
             formatted_posts = []
             for post in posts:
-                try:
-                    post_dict = dict(post)
-                    
-                    # Formater datoer
-                    for date_field in ['opprettet_dato', 'oppdatert_dato']:
-                        if date_field in post_dict and post_dict[date_field]:
+                post_dict = dict(post)
+                
+                # Ensure dates are properly formatted as datetime objects
+                for date_field in ['opprettet_dato', 'oppdatert_dato']:
+                    if date_field in post_dict and post_dict[date_field]:
+                        try:
+                            if isinstance(post_dict[date_field], str):
+                                if 'T' in post_dict[date_field]:  # ISO format
+                                    post_dict[date_field] = datetime.fromisoformat(post_dict[date_field].replace('Z', '+00:00'))
+                                else:  # SQLite default format
+                                    post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d %H:%M:%S')
+                        except (ValueError, TypeError):
                             try:
-                                if isinstance(post_dict[date_field], str):
-                                    # Parse the date string into a datetime object
-                                    if 'T' in post_dict[date_field]:  # ISO format
-                                        post_dict[date_field] = datetime.fromisoformat(post_dict[date_field].replace('Z', '+00:00'))
-                                    else:  # SQLite default format
-                                        post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d %H:%M:%S')
+                                # Try date-only format
+                                post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d')
                             except (ValueError, TypeError):
-                                try:
-                                    post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d')
-                                except Exception:
-                                    # Keep the original if all parsing fails
-                                    pass
-                    
-                    formatted_posts.append(post_dict)
-                except Exception as e:
-                    print(f"Feil ved formatering av innlegg: {e}")
-            
-            print(f"Formatert {len(formatted_posts)} innlegg for visning")
+                                # If all parsing fails, provide a default datetime to avoid template errors
+                                post_dict[date_field] = datetime.now()
+                
+                formatted_posts.append(post_dict)
             
             return render_template('posts/list.html', posts=formatted_posts)
             
     except Exception as e:
-        import traceback
-        print(f"Feil ved henting av innlegg: {e}")
-        print(traceback.format_exc())
-        flash(f'En feil oppstod ved henting av innlegg: {str(e)}', 'danger')
+        flash(f'Error fetching posts: {str(e)}', 'danger')
         return render_template('posts/list.html', posts=[])
+    
+@app.route('/reset_posts', methods=['GET'])
+def reset_posts():
+    try:
+        with Database() as db:
+            # First delete all existing posts relationships
+            db.execute("DELETE FROM INNLEGG_TAGGER")
+            db.execute("DELETE FROM KOMMENTARER")
+            db.execute("DELETE FROM REAKSJONER WHERE innlegg_id IS NOT NULL")
+            db.execute("DELETE FROM INNLEGG")
+            
+            # Now insert the correct posts from the sample data
+            # These mappings match the original data from social_media_sample_data.sql
+            post_data = [
+                ('Fantastisk solnedgang fra fjellturen i dag! #natur #fjelltur', '2023-07-01 18:45:00', 'offentlig', 'johansen94'),
+                ('Ny oppskrift på hjemmelaget pasta med sesongbaserte råvarer. Deilig sommermat!', '2023-07-02 12:30:00', 'offentlig', 'jensten'),
+                ('Har nettopp lært meg grunnleggende Python-programmering. Fascinerende!', '2023-07-03 09:15:00', 'offentlig', 'olekristian'),
+                ('På vei til Roma! Noen tips til hva jeg bør se?', '2023-07-04 16:20:00', 'offentlig', 'linelise'),
+                ('Min nye treningsrutine har gitt gode resultater. Deler gjerne erfaringer.', '2023-07-05 07:45:00', 'offentlig', 'pernillen'),
+                ('Var på konsert med favorittbandet mitt i går. Helt utrolig opplevelse!', '2023-07-06 10:10:00', 'offentlig', 'torhild'),
+                ('Besøkte en fascinerende kunstutstilling i helgen. Anbefales!', '2023-07-07 14:25:00', 'offentlig', 'karianne'),
+                ('Har nettopp lest en fantastisk roman. Noen andre som har lest "Havet" av Jon Sorensen?', '2023-07-08 20:30:00', 'offentlig', 'mariaberg'),
+                ('Så den nye sci-fi filmen i går. Imponerende effekter!', '2023-07-09 19:05:00', 'offentlig', 'magnush'),
+                ('Første dag i ny jobb! Spent på hva framtiden bringer.', '2023-07-10 08:50:00', 'offentlig', 'martingm'),
+                ('Familietur til hytta. Barna koser seg med fiske og bading.', '2023-07-11 15:40:00', 'venner', 'annesofi'),
+                ('Tenker på å ta et nytt kurs i markedsføring. Noen anbefalinger?', '2023-07-12 11:15:00', 'offentlig', 'pernillen'),
+                ('Tester ut nytt kamera. Her er noen av de første bildene.', '2023-07-13 13:20:00', 'offentlig', 'johansen94'),
+                ('Endelig ferdig med eksamen! Nå venter sommerferie.', '2023-07-14 16:55:00', 'offentlig', 'anderskr')
+            ]
+            
+            # Insert posts with correct user IDs
+            for content, date, visibility, username in post_data:
+                # Find the user ID for this username
+                user = db.fetchone("SELECT bruker_id FROM BRUKERE WHERE brukernavn = ?", (username,))
+                if user:
+                    db.execute(
+                        "INSERT INTO INNLEGG (innhold, opprettet_dato, synlighet, bruker_id) VALUES (?, ?, ?, ?)",
+                        (content, date, visibility, user['bruker_id'])
+                    )
+            
+            # Recreate tag associations
+            tag_associations = [
+                (1, 1),  # natur
+                (2, 2),  # mat
+                (3, 3),  # teknologi
+                (4, 4),  # reise
+                (5, 5),  # trening
+                (6, 6),  # musikk
+                (7, 7),  # kunst
+                (8, 8),  # litteratur
+                (9, 9),  # film
+                (10, 11), # jobb
+                (11, 12), # familie
+                (12, 10), # utdanning
+                (13, 1),  # natur (for kameratestbilde)
+                (13, 7),  # kunst (for kameratestbilde)
+                (14, 10)  # utdanning (for eksamen-innlegget)
+            ]
+            
+            for post_id, tag_id in tag_associations:
+                db.execute("INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)", (post_id, tag_id))
+                
+            flash('Posts have been reset to original sample data!', 'success')
+            return redirect(url_for('list_posts'))
+            
+    except Exception as e:
+        flash(f'Error resetting posts: {str(e)}', 'danger')
+        return redirect(url_for('list_posts'))
+
 # READ - View single post with comments
 @app.route('/posts/<int:post_id>')
 def view_post(post_id):
@@ -1045,6 +1068,8 @@ def delete_tag(tag_id):
     
     return redirect(url_for('manage_tags'))
 
+
+
 # Route for tag popularity analysis
 @app.route('/tag_analysis')
 def tag_analysis():
@@ -1097,6 +1122,32 @@ def import_sample_data_endpoint():
         flash(f'Feil ved import av testdata: {str(e)}', 'danger')
     
     return redirect(url_for('index'))
+
+@app.route('/debug_db_stats')
+def debug_db_stats():
+    with Database() as db:
+        stats = {
+            'users': db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")['count'],
+            'posts': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG")['count'],
+            'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER")['count'],
+            'tags': db.fetchone("SELECT COUNT(*) as count FROM TAGGER")['count'],
+            'post_tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER")['count'],
+            'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER")['count'],
+            'follows': db.fetchone("SELECT COUNT(*) as count FROM FØLGER")['count'],
+            'messages': db.fetchone("SELECT COUNT(*) as count FROM MELDINGER")['count']
+        }
+        
+        # Also check a specific post (e.g., post ID 1)
+        post_id = 1
+        post_stats = {
+            'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER WHERE innlegg_id = ?", (post_id,))['count'],
+            'tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER WHERE innlegg_id = ?", (post_id,))['count'],
+            'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER WHERE innlegg_id = ?", (post_id,))['count']
+        }
+        
+        return render_template('debug/db_stats.html', stats=stats, post_stats=post_stats, post_id=post_id)
+    
+
 
 
 if __name__ == '__main__':
