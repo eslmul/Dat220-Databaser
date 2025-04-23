@@ -23,33 +23,10 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Hjelpefunksjon for å håndtere bildeopplasting
 def handle_image_upload(file, old_filename=None):
-    if file and file.filename and allowed_file(file.filename):
-        # Fjern gammel fil hvis en ny lastes opp
-        if old_filename and old_filename != 'default.jpg':
-            old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
-            if os.path.exists(old_file_path):
-                try:
-                    os.remove(old_file_path)
-                except Exception:
-                    pass  # Ignorerer feil ved sletting av gammel fil
-                
-        # Generer et unikt filnavn for å unngå kollisjoner
-        filename = secure_filename(file.filename)
-        file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
-        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-        
-        # Lagre filen
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(file_path)
-        
-        return unique_filename
-    
-    # Returner gammel filnavn hvis ingen ny fil ble lastet opp
-    return old_filename
+    # Return default value without processing file
+    return old_filename or 'default.jpg'
 
-# Modifiser CREATE - Process user creation for å støtte bildeopplasting
 @app.route('/users/create', methods=['POST'])
 def create_user():
     username = request.form['brukernavn']
@@ -58,10 +35,8 @@ def create_user():
     bio = request.form['bio']
     birth_date = request.form['fødselsdato'] if request.form['fødselsdato'] else None
     
-    # Håndter profilbilde-opplasting
-    profile_image = None
-    if 'profilbilde' in request.files:
-        profile_image = handle_image_upload(request.files['profilbilde'])
+    # Skip image handling, just use default
+    profile_image = 'default.jpg'
     
     try:
         with Database() as db:
@@ -76,7 +51,6 @@ def create_user():
         flash(f'Error creating user: {str(e)}', 'danger')
         return render_template('users/create.html')
 
-# Modifiser UPDATE - Process user update for å støtte bildeopplasting
 @app.route('/users/<int:user_id>/edit', methods=['POST'])
 def edit_user(user_id):
     with Database() as db:
@@ -89,10 +63,8 @@ def edit_user(user_id):
         bio = request.form['bio']
         status = request.form['status']
         
-        # Håndter profilbilde-opplasting
-        profile_image = user['profilbilde']  # Default til eksisterende bilde
-        if 'profilbilde' in request.files and request.files['profilbilde'].filename:
-            profile_image = handle_image_upload(request.files['profilbilde'], old_filename=profile_image)
+        # Keep existing profile image
+        profile_image = user['profilbilde']
         
         # Update user data
         db.execute(
@@ -103,40 +75,7 @@ def edit_user(user_id):
     flash('User updated successfully!', 'success')
     return redirect(url_for('view_user', user_id=user_id))
 
-# Legg til route for bildeopplasting til innlegg
-@app.route('/posts/<int:post_id>/upload_image', methods=['POST'])
-def upload_post_image(post_id):
-    try:
-        with Database() as db:
-            # Sjekk om innlegget eksisterer
-            post = db.fetchone("SELECT * FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
-            if not post:
-                flash('Post not found', 'danger')
-                return redirect(url_for('list_posts'))
-            
-            # Håndter bildeopplasting
-            if 'image' in request.files:
-                image_filename = handle_image_upload(request.files['image'])
-                if image_filename:
-                    # Legg til bildestien i innleggsinnholdet
-                    updated_content = post['innhold'] + f'\n\n<img src="/static/uploads/{image_filename}" class="img-fluid rounded" alt="Post image">'
-                    
-                    # Oppdater innlegget
-                    db.execute(
-                        "UPDATE INNLEGG SET innhold = ?, oppdatert_dato = datetime('now') WHERE innlegg_id = ?",
-                        (updated_content, post_id)
-                    )
-                    
-                    flash('Image uploaded and added to post', 'success')
-                else:
-                    flash('Invalid file type or upload failed', 'danger')
-            else:
-                flash('No file selected', 'warning')
-                
-        return redirect(url_for('view_post', post_id=post_id))
-    except Exception as e:
-        flash(f'Error uploading image: {str(e)}', 'danger')
-        return redirect(url_for('view_post', post_id=post_id))
+
 
 # Helper function to convert SQLite rows to dictionaries with proper datetime objects
 def format_date_fields(item, date_fields=None):
@@ -299,7 +238,10 @@ def list_posts():
                 LIMIT 3
             """)
             for i, post in enumerate(test_join):
-                print(f"Debug - Join {i+1}: Innlegg={post['innlegg_id']}, Bruker ID={post['bruker_id']}, Brukernavn={post.get('brukernavn', 'MANGLER!')}")
+                # Fixed: Convert to dict first or use conditional access
+                post_dict = dict(post)
+                brukernavn = post_dict.get('brukernavn', 'MANGLER!')
+                print(f"Debug - Join {i+1}: Innlegg={post_dict['innlegg_id']}, Bruker ID={post_dict['bruker_id']}, Brukernavn={brukernavn}")
             
             # Hent alle innlegg med brukerinfo med LEFT JOIN istedenfor INNER JOIN
             posts = db.fetchall("""
@@ -316,13 +258,17 @@ def list_posts():
             formatted_posts = []
             for post in posts:
                 try:
+                    # Convert sqlite3.Row to regular dict
                     post_dict = dict(post)
                     
-                    # Sjekk om bruker eksisterer
-                    if not post_dict.get('brukernavn'):
-                        print(f"Advarsel: Innlegg {post_dict.get('innlegg_id')} har ingen tilknyttet bruker (bruker_id: {post_dict.get('bruker_id')})")
+                    # Sjekk om bruker eksisterer (fixed)
+                    brukernavn = post_dict.get('brukernavn')
+                    if not brukernavn:
+                        innlegg_id = post_dict.get('innlegg_id', 'ukjent')
+                        bruker_id = post_dict.get('bruker_id', 'mangler')
+                        print(f"Advarsel: Innlegg {innlegg_id} har ingen tilknyttet bruker (bruker_id: {bruker_id})")
                         # Legg til en placeholder hvis bruker mangler
-                        post_dict['brukernavn'] = f"Ukjent (ID: {post_dict.get('bruker_id', 'mangler')})"
+                        post_dict['brukernavn'] = f"Ukjent (ID: {bruker_id})"
                     
                     # Formater datoer
                     for date_field in ['opprettet_dato', 'oppdatert_dato']:
