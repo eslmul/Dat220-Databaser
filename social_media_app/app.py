@@ -1148,8 +1148,6 @@ def debug_db_stats():
         return render_template('debug/db_stats.html', stats=stats, post_stats=post_stats, post_id=post_id)
     
 
-
-
 if __name__ == '__main__':
     app.run(debug=True)
     
