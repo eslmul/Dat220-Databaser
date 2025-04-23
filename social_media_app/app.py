@@ -103,6 +103,7 @@ def edit_user(user_id):
     flash('User updated successfully!', 'success')
     return redirect(url_for('view_user', user_id=user_id))
 
+
 # Legg til route for bildeopplasting til innlegg
 @app.route('/posts/<int:post_id>/upload_image', methods=['POST'])
 def upload_post_image(post_id):
@@ -165,7 +166,6 @@ def format_date_fields(item, date_fields=None):
                         pass  # Keep original if parsing fails
     return item
 
-# Initialize database on startup
 def initialize_database():
     init_db()
     
@@ -174,19 +174,75 @@ def initialize_database():
         user_count = db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")
         if not user_count or user_count['count'] < 10:
             try:
-                # Prøv først den eksisterende add_sample_data funksjonen
-                add_sample_data()
+                print("Legger til testdata...")
+                # 1. Sjekk sti til SQL-filen
+                sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'MySQL', 'social_media_sample_data.sql')
                 
-                # Sjekk om det nå er minst 10 brukere
-                user_count = db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")
-                if not user_count or user_count['count'] < 10:
-                    # Hvis fortsatt mindre enn 10, prøv å importere fra SQL-fil
-                    print("Importerer testdata fra SQL-fil...")
-                    import_sql_sample_data()
+                # Hvis filen ikke finnes på den forventede stien, prøv alternativer
+                if not os.path.exists(sql_file_path):
+                    alternative_paths = [
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'MySQL', 'social_media_sample_data.sql'),
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'social_media_sample_data.sql'),
+                        'MySQL/social_media_sample_data.sql',
+                        'social_media_sample_data.sql'
+                    ]
+                    
+                    for alt_path in alternative_paths:
+                        if os.path.exists(alt_path):
+                            sql_file_path = alt_path
+                            print(f"Fant SQL-fil på: {alt_path}")
+                            break
+                
+                # 2. Les og kjør SQL-kommandoene direkte hvis filen finnes
+                if os.path.exists(sql_file_path):
+                    print(f"Importerer data fra {sql_file_path}...")
+                    with open(sql_file_path, 'r', encoding='utf-8') as f:
+                        sql_script = f.read()
+                    
+                    # Fjern kommentarer og tom plass
+                    import re
+                    sql_script = re.sub(r'--.*?\n', '\n', sql_script)
+                    
+                    # Del opp i statements basert på semikolon
+                    statements = []
+                    current_statement = ""
+                    
+                    for line in sql_script.split('\n'):
+                        line = line.strip()
+                        if not line or line.startswith('--'):
+                            continue
+                            
+                        current_statement += line + " "
+                        
+                        if line.endswith(';'):
+                            statements.append(current_statement.strip())
+                            current_statement = ""
+                    
+                    # Filtrer ut bare INSERT-statements og kjør dem
+                    insert_statements = [stmt for stmt in statements if stmt.upper().startswith('INSERT')]
+                    
+                    # Slå av foreign key sjekker midlertidig hvis det er SET FOREIGN_KEY_CHECKS = 0 i filen
+                    db.execute("PRAGMA foreign_keys = OFF")
+                    
+                    for stmt in insert_statements:
+                        try:
+                            # Erstatt MySQL-spesifikk syntaks
+                            stmt = stmt.replace('NOW()', 'CURRENT_TIMESTAMP')
+                            db.execute(stmt)
+                        except Exception as e:
+                            print(f"Feil ved utføring av SQL: {e}")
+                            print(f"Statement: {stmt}")
+                    
+                    # Slå på foreign key sjekker igjen
+                    db.execute("PRAGMA foreign_keys = ON")
+                    print("SQL-import fullført!")
+                else:
+                    print("Kunne ikke finne SQL-filen, prøver add_sample_data() i stedet...")
+                    add_sample_data()
             except Exception as e:
                 print(f"Feil ved initialisering av testdata: {e}")
-                # Prøv å importere fra SQL-fil som fallback
-                import_sql_sample_data()
+                print("Prøver å legge til enkle testdata...")
+                add_sample_data()
 
 # Call initialization function during startup
 with app.app_context():
@@ -270,8 +326,6 @@ def delete_user(user_id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('list_users'))
 
-# Routes for Posts (INNLEGG)
-# READ - List all posts
 @app.route('/posts')
 def list_posts():
     try:
@@ -286,43 +340,48 @@ def list_posts():
                 flash('Ingen innlegg funnet i databasen. Prøv å importere testdata.', 'info')
                 return render_template('posts/list.html', posts=[])
             
-            # Skriv ut detaljer om de første 3 innleggene for feilsøking
-            test_posts = db.fetchall("SELECT * FROM INNLEGG LIMIT 3")
-            for i, post in enumerate(test_posts):
-                print(f"Debug - Innlegg {i+1}: ID={post['innlegg_id']}, Bruker={post['bruker_id']}")
+            # Fiks problemer med brukere og innlegg
+            try:
+                # Sjekk om det finnes "hengende" innlegg med ugyldige bruker-IDer
+                invalid_posts = db.fetchall("""
+                    SELECT i.innlegg_id, i.bruker_id
+                    FROM INNLEGG i
+                    LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id
+                    WHERE b.bruker_id IS NULL
+                """)
+                
+                if invalid_posts:
+                    print(f"Fant {len(invalid_posts)} innlegg med ugyldige bruker-referanser")
+                    # Du kan enten slette disse innleggene ELLER oppdatere dem til en gyldig bruker
+                    for post in invalid_posts:
+                        # Oppdater til den første gyldige brukeren i systemet
+                        valid_user = db.fetchone("SELECT bruker_id FROM BRUKERE LIMIT 1")
+                        if valid_user:
+                            print(f"Oppdaterer innlegg {post['innlegg_id']} fra ugyldig bruker {post['bruker_id']} til gyldig bruker {valid_user['bruker_id']}")
+                            db.execute("UPDATE INNLEGG SET bruker_id = ? WHERE innlegg_id = ?", 
+                                      (valid_user['bruker_id'], post['innlegg_id']))
+                        else:
+                            # Hvis ingen gyldige brukere finnes, slett innlegget
+                            print(f"Sletter innlegg {post['innlegg_id']} med ugyldig bruker {post['bruker_id']}")
+                            db.execute("DELETE FROM INNLEGG WHERE innlegg_id = ?", (post['innlegg_id'],))
+            except Exception as e:
+                print(f"Feil ved fiksing av innlegg-bruker-relasjoner: {e}")
             
-            # Test at bruker-innlegg relasjonen fungerer
-            test_join = db.fetchall("""
-                SELECT i.innlegg_id, i.bruker_id, b.brukernavn 
-                FROM INNLEGG i 
-                LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
-                LIMIT 3
-            """)
-            for i, post in enumerate(test_join):
-                print(f"Debug - Join {i+1}: Innlegg={post['innlegg_id']}, Bruker ID={post['bruker_id']}, Brukernavn={post['brukernavn'] if 'brukernavn' in post else 'MANGLER!'}")
-            
-            # Hent alle innlegg med brukerinfo med LEFT JOIN istedenfor INNER JOIN
+            # Hent alle innlegg med brukerinfo på nytt, nå med garantert gyldige brukere
             posts = db.fetchall("""
                 SELECT i.*, b.brukernavn 
                 FROM INNLEGG i 
-                LEFT JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
+                JOIN BRUKERE b ON i.bruker_id = b.bruker_id 
                 ORDER BY i.opprettet_dato DESC
             """)
             
-            # Ekstra feilsøking-informasjon
             print(f"Spørringen returnerte {len(posts)} innlegg")
             
-            # Formater dato-felt og utfør feilsjekking
+            # Formater dato-felt
             formatted_posts = []
             for post in posts:
                 try:
                     post_dict = dict(post)
-                    
-                    # Sjekk om bruker eksisterer
-                    if not post_dict.get('brukernavn'):
-                        print(f"Advarsel: Innlegg {post_dict.get('innlegg_id')} har ingen tilknyttet bruker (bruker_id: {post_dict.get('bruker_id')})")
-                        # Legg til en placeholder hvis bruker mangler
-                        post_dict['brukernavn'] = f"Ukjent (ID: {post_dict.get('bruker_id', 'mangler')})"
                     
                     # Formater datoer
                     for date_field in ['opprettet_dato', 'oppdatert_dato']:
@@ -334,37 +393,27 @@ def list_posts():
                                         post_dict[date_field] = datetime.fromisoformat(post_dict[date_field].replace('Z', '+00:00'))
                                     else:  # SQLite default format
                                         post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d %H:%M:%S')
-                            except (ValueError, TypeError) as e:
-                                print(f"Advarsel: Dato-parsing feilet for {date_field}: {post_dict[date_field]} - {e}")
-                                # Try one more format
+                            except (ValueError, TypeError):
                                 try:
                                     post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d')
-                                except Exception as e:
-                                    print(f"Advarsel: Dato-parsing feilet for {date_field}: {post_dict[date_field]} - {e}")
+                                except Exception:
                                     # Keep the original if all parsing fails
                                     pass
                     
                     formatted_posts.append(post_dict)
                 except Exception as e:
                     print(f"Feil ved formatering av innlegg: {e}")
-                    # Fortsett med neste innlegg
             
             print(f"Formatert {len(formatted_posts)} innlegg for visning")
-            
-            if not formatted_posts:
-                print("ADVARSEL: Ingen formaterte innlegg!")
-                flash('Feil ved formatering av innlegg. Sjekk serverloggen.', 'warning')
             
             return render_template('posts/list.html', posts=formatted_posts)
             
     except Exception as e:
-        # Logger feilen og viser en melding til brukeren
         import traceback
         print(f"Feil ved henting av innlegg: {e}")
         print(traceback.format_exc())
         flash(f'En feil oppstod ved henting av innlegg: {str(e)}', 'danger')
         return render_template('posts/list.html', posts=[])
-
 # READ - View single post with comments
 @app.route('/posts/<int:post_id>')
 def view_post(post_id):
@@ -1048,6 +1097,7 @@ def import_sample_data_endpoint():
         flash(f'Feil ved import av testdata: {str(e)}', 'danger')
     
     return redirect(url_for('index'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
