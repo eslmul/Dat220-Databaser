@@ -165,3 +165,8 @@ footer {
     height: 200px;
     object-fit: cover;
 }
+
+/* Legg til denne klassen i static/style.css */
+.reaction-user-select {
+    width: auto;
+}

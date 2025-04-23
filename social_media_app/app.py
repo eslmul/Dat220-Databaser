@@ -1147,6 +1147,46 @@ def debug_db_stats():
         
         return render_template('debug/db_stats.html', stats=stats, post_stats=post_stats, post_id=post_id)
     
+    # Legg til denne ruten i app.py
+@app.route('/posts/<int:post_id>/react', methods=['POST'])
+def add_reaction(post_id):
+    bruker_id = request.form['bruker_id']
+    reaksjon_type = request.form.get('reaksjon_type', 'like')
+    
+    try:
+        with Database() as db:
+            # Sjekk om innlegget eksisterer
+            post = db.fetchone("SELECT * FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
+            if not post:
+                flash('Innlegg ikke funnet', 'danger')
+                return redirect(url_for('list_posts'))
+                
+            # Sjekk om brukeren allerede har reagert på dette innlegget
+            existing_reaction = db.fetchone(
+                "SELECT * FROM REAKSJONER WHERE bruker_id = ? AND innlegg_id = ?",
+                (bruker_id, post_id)
+            )
+            
+            if existing_reaction:
+                # Hvis brukeren allerede har reagert, fjern reaksjonen (toggle)
+                db.execute(
+                    "DELETE FROM REAKSJONER WHERE reaksjon_id = ?",
+                    (existing_reaction['reaksjon_id'],)
+                )
+                flash('Reaksjon fjernet', 'success')
+            else:
+                # Legg til ny reaksjon
+                db.execute(
+                    "INSERT INTO REAKSJONER (reaksjon_type, opprettet_dato, bruker_id, innlegg_id, kommentar_id) "
+                    "VALUES (?, datetime('now'), ?, ?, NULL)",
+                    (reaksjon_type, bruker_id, post_id)
+                )
+                flash('Reaksjon lagt til', 'success')
+            
+        return redirect(url_for('view_post', post_id=post_id))
+    except Exception as e:
+        flash(f'Feil ved håndtering av reaksjon: {str(e)}', 'danger')
+        return redirect(url_for('view_post', post_id=post_id))
 
 if __name__ == '__main__':
     app.run(debug=True)
