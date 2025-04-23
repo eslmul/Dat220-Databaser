@@ -277,6 +277,7 @@ def list_users():
     return render_template('users/list.html', users=users)
 
 # READ - View user profile
+# Oppdater view_user ruten til å inkludere alle brukere
 @app.route('/users/<int:user_id>')
 def view_user(user_id):
     with Database() as db:
@@ -289,12 +290,62 @@ def view_user(user_id):
             
             # Get user's followers count
             followers = db.fetchone("SELECT COUNT(*) as count FROM FØLGER WHERE følger_bruker_id = ? AND status = 'aktiv'", (user_id,))
+            
             # Get user's following count
             following = db.fetchone("SELECT COUNT(*) as count FROM FØLGER WHERE følger_id = ? AND status = 'aktiv'", (user_id,))
+            
+            # Get all users for the follow form
+            all_users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE WHERE status = 'aktiv'")
+            
             return render_template('users/view.html', user=user, posts=posts, 
-                                followers=followers['count'], following=following['count'])
+                                followers=followers['count'] if followers else 0, 
+                                following=following['count'] if following else 0,
+                                all_users=all_users)
     flash('User not found', 'danger')
     return redirect(url_for('list_users'))
+
+# Add this to app.py - Route for following/unfollowing users
+@app.route('/users/<int:user_id>/follow', methods=['POST'])
+def follow_user(user_id):
+    follower_id = request.form['follower_id']  # ID til brukeren som følger
+    
+    if follower_id == str(user_id):
+        flash('Du kan ikke følge deg selv!', 'warning')
+        return redirect(url_for('view_user', user_id=user_id))
+    
+    try:
+        with Database() as db:
+            # Sjekk om relasjonen allerede eksisterer
+            existing = db.fetchone("""
+                SELECT * FROM FØLGER 
+                WHERE følger_id = ? AND følger_bruker_id = ?
+            """, (follower_id, user_id))
+            
+            if existing:
+                # Hvis relasjonen allerede finnes, endre status (toggle)
+                new_status = 'inaktiv' if existing['status'] == 'aktiv' else 'aktiv'
+                db.execute("""
+                    UPDATE FØLGER 
+                    SET status = ?, opprettet_dato = datetime('now')
+                    WHERE følge_id = ?
+                """, (new_status, existing['følge_id']))
+                
+                if new_status == 'aktiv':
+                    flash('Du følger nå denne brukeren!', 'success')
+                else:
+                    flash('Du følger ikke lenger denne brukeren.', 'info')
+            else:
+                # Opprett ny følgerelasjon
+                db.execute("""
+                    INSERT INTO FØLGER (følger_id, følger_bruker_id, opprettet_dato, status)
+                    VALUES (?, ?, datetime('now'), 'aktiv')
+                """, (follower_id, user_id))
+                flash('Du følger nå denne brukeren!', 'success')
+            
+        return redirect(url_for('view_user', user_id=user_id))
+    except Exception as e:
+        flash(f'Feil ved oppdatering av følgestatus: {str(e)}', 'danger')
+        return redirect(url_for('view_user', user_id=user_id))
 
 # CREATE - Show user creation form
 @app.route('/users/create', methods=['GET'])

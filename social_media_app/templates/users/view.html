@@ -38,6 +38,25 @@
                     </div>
                 </div>
                 
+                <!-- Følg bruker funksjonalitet -->
+                <div class="mb-4">
+                    <form action="{{ url_for('follow_user', user_id=user.bruker_id) }}" method="post">
+                        <div class="input-group">
+                            <select name="follower_id" class="form-select">
+                                <option value="" selected disabled>Velg bruker som skal følge</option>
+                                {% for u in all_users %}
+                                    {% if u.bruker_id != user.bruker_id %}
+                                        <option value="{{ u.bruker_id }}">{{ u.brukernavn }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-user-plus"></i> Følg
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
                 <div class="d-flex justify-content-center gap-2 mb-3">
                     <a href="{{ url_for('show_edit_user', user_id=user.bruker_id) }}" class="btn btn-outline-primary">
                         <i class="fas fa-edit"></i> Rediger
