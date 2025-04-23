@@ -299,7 +299,7 @@ def list_posts():
                 LIMIT 3
             """)
             for i, post in enumerate(test_join):
-                print(f"Debug - Join {i+1}: Innlegg={post['innlegg_id']}, Bruker ID={post['bruker_id']}, Brukernavn={post.get('brukernavn', 'MANGLER!')}")
+                print(f"Debug - Join {i+1}: Innlegg={post['innlegg_id']}, Bruker ID={post['bruker_id']}, Brukernavn={post['brukernavn'] if 'brukernavn' in post else 'MANGLER!'}")
             
             # Hent alle innlegg med brukerinfo med LEFT JOIN istedenfor INNER JOIN
             posts = db.fetchall("""
