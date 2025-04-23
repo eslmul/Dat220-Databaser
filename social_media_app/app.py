@@ -514,6 +514,12 @@ def view_post(post_id):
             WHERE k.innlegg_id = ? AND k.forelder_kommentar_id IS NULL
             ORDER BY k.opprettet_dato ASC
         """, (post_id,))
+
+        print(f"DEBUG: Innlegg ID: {post_id}")
+        print(f"DEBUG: Antall kommentarer funnet: {len(comments) if comments else 0}")
+        for comment in comments:
+            print(f"DEBUG: Kommentar ID: {comment['kommentar_id']}, Innhold: {comment['innhold']}")
+        
         comments = [format_date_fields(comment, ['opprettet_dato']) for comment in comments]
         
         # Get replies for each comment
@@ -560,6 +566,292 @@ def show_create_post():
         users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE WHERE status = 'aktiv'")
         tags = db.fetchall("SELECT * FROM TAGGER")
     return render_template('posts/create.html', users=users, tags=tags)
+
+@app.route('/fix_comments', methods=['GET'])
+def fix_comments():
+    try:
+        with Database() as db:
+            # Sjekk antall eksisterende kommentarer
+            existing = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
+            existing_count = existing['count'] if existing else 0
+            
+            # Slett eksisterende kommentarer hvis nødvendig
+            db.execute("DELETE FROM KOMMENTARER")
+            
+            # Sjekk om brukere finnes
+            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE")
+            user_ids = [user['bruker_id'] for user in users]
+            user_info = {user['bruker_id']: user['brukernavn'] for user in users}
+            
+            # Sjekk om innlegg finnes
+            posts = db.fetchall("SELECT innlegg_id FROM INNLEGG")
+            post_ids = [post['innlegg_id'] for post in posts]
+            
+            # Vis informasjon om tilgjengelige brukere og innlegg
+            debug_info = f"<h4>Tilgjengelige brukere ({len(user_ids)}): {user_ids}</h4>"
+            debug_info += f"<h4>Tilgjengelige innlegg ({len(post_ids)}): {post_ids}</h4>"
+            
+            # Legg inn kommentarer fra sample data
+            comments_data = [
+                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
+                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
+                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
+                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
+                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
+                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
+                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
+                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
+                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
+                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
+                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
+                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
+                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
+                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
+            ]
+            
+            inserted_count = 0
+            failure_details = []
+            
+            for comment_data in comments_data:
+                content, date, post_id, user_id, parent_id = comment_data
+                
+                try:
+                    # Sjekk om innlegg og bruker finnes
+                    post_exists = post_id in post_ids
+                    user_exists = user_id in user_ids
+                    
+                    if not post_exists:
+                        failure_details.append(f"Innlegg med ID {post_id} finnes ikke")
+                        continue
+                        
+                    if not user_exists:
+                        failure_details.append(f"Bruker med ID {user_id} finnes ikke")
+                        continue
+                    
+                    # Legg til kommentaren
+                    comment_id = db.execute(
+                        "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (content, date, post_id, user_id, None)  # Setter parent_id til None først
+                    )
+                    
+                    inserted_count += 1
+                    
+                except Exception as e:
+                    failure_details.append(f"Feil ved innsetting av '{content[:20]}...': {str(e)}")
+            
+            # Oppdater senere forelder-referanser om nødvendig
+            
+            # Sjekk antall kommentarer etter innsetting
+            after = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
+            after_count = after['count'] if after else 0
+            
+            # Forbered detaljert feilrapport
+            failure_report = "<h4>Detaljer om feil:</h4><ul>"
+            for detail in failure_details:
+                failure_report += f"<li>{detail}</li>"
+            failure_report += "</ul>"
+            
+            return f"""
+            <h3>Kommentar-fiksen er fullført!</h3>
+            <p>Før: {existing_count} kommentarer</p>
+            <p>Etter: {after_count} kommentarer</p>
+            <p>Forsøkt å legge til: {len(comments_data)} kommentarer</p>
+            <p>Vellykket lagt til: {inserted_count} kommentarer</p>
+            <p>Feilet: {len(comments_data) - inserted_count} kommentarer</p>
+            
+            {debug_info}
+            
+            {failure_report}
+            
+            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
+            <p><a href="/reset_db">Tilbakestill databasen</a></p>
+            """
+    except Exception as e:
+        return f"Generell feil ved fiksing av kommentarer: {str(e)}"
+
+# Legg også til en rute for å tilbakestille hele databasen
+@app.route('/reset_db')
+def reset_db():
+    try:
+        # Kjør init_db og import_sql_sample_data
+        init_db()
+        success = import_sql_sample_data()
+        
+        return f"""
+        <h3>Database tilbakestilt</h3>
+        <p>Status: {'Vellykket' if success else 'Feilet'}</p>
+        <p><a href="/debug_comments">Se kommentaroversikt</a></p>
+        <p><a href="/">Gå til forsiden</a></p>
+        """
+    except Exception as e:
+        return f"Feil ved tilbakestilling av database: {str(e)}"
+    
+@app.route('/fix_comments_complete', methods=['GET'])
+def fix_comments_complete():
+    try:
+        with Database() as db:
+            # Sjekk antall eksisterende kommentarer
+            existing = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
+            existing_count = existing['count'] if existing else 0
+            
+            # Slett eksisterende kommentarer
+            db.execute("DELETE FROM KOMMENTARER")
+            
+            # Hent alle faktiske brukere og innlegg
+            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE ORDER BY bruker_id")
+            posts = db.fetchall("SELECT innlegg_id, innhold FROM INNLEGG ORDER BY opprettet_dato ASC")
+            
+            # Vis bruker-informasjon
+            user_info = "<h4>Brukere i databasen:</h4><ul>"
+            for user in users:
+                user_info += f"<li>ID {user['bruker_id']}: {user['brukernavn']}</li>"
+            user_info += "</ul>"
+            
+            # Opprett mappinger fra opprinnelige IDer til faktiske IDer
+            post_mapping = {}
+            for i, post in enumerate(posts):
+                original_id = i + 1
+                post_mapping[original_id] = post['innlegg_id']
+            
+            # Lag en mapping for brukere
+            # I den opprinnelige dataen, bruker-ID 1-12 tilsvarer de første 12 brukerne i databasen
+            user_mapping = {}
+            for i, user in enumerate(users):
+                original_id = i + 1
+                user_mapping[original_id] = user['bruker_id']
+            
+            # Vis mappingene
+            mapping_info = "<h4>Innlegg-mapping:</h4><ul>"
+            for orig_id, actual_id in post_mapping.items():
+                mapping_info += f"<li>Original ID {orig_id} → Faktisk ID {actual_id}</li>"
+            mapping_info += "</ul>"
+            
+            mapping_info += "<h4>Bruker-mapping:</h4><ul>"
+            for orig_id, actual_id in user_mapping.items():
+                mapping_info += f"<li>Original ID {orig_id} → Faktisk ID {actual_id}</li>"
+            mapping_info += "</ul>"
+            
+            # Opprinnelige kommentar-data
+            comments_data = [
+                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
+                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
+                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
+                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
+                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
+                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
+                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
+                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
+                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
+                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
+                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
+                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
+                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
+                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
+            ]
+            
+            # Juster kommentarene til å bruke faktiske innlegg-IDer og bruker-IDer
+            adjusted_comments = []
+            for content, date, orig_post_id, orig_user_id, parent_comment_id in comments_data:
+                actual_post_id = post_mapping.get(orig_post_id)
+                actual_user_id = user_mapping.get(orig_user_id)
+                
+                if actual_post_id is not None and actual_user_id is not None:
+                    adjusted_comments.append((content, date, actual_post_id, actual_user_id, parent_comment_id))
+            
+            # Legg inn første omgang med kommentarer (uten foreldre)
+            inserted_comments = {}  # Original kommentar-ID til ny kommentar-ID
+            inserted_count = 0
+            failure_details = []
+            
+            for i, (content, date, post_id, user_id, _) in enumerate(adjusted_comments):
+                original_comment_id = i + 1  # 1-basert kommentar-ID
+                
+                try:
+                    # Legg til kommentar uten forelder først
+                    new_comment_id = db.execute(
+                        "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
+                        "VALUES (?, ?, ?, ?, NULL)",
+                        (content, date, post_id, user_id)
+                    )
+                    
+                    # Lagre mapping mellom original kommentar-ID og ny kommentar-ID
+                    inserted_comments[original_comment_id] = new_comment_id
+                    inserted_count += 1
+                    
+                except Exception as e:
+                    failure_details.append(f"Feil ved innsetting av kommentar {original_comment_id}: {str(e)}")
+                    print(f"Feil ved innsetting: PostID={post_id}, UserID={user_id}, Error={str(e)}")
+            
+            # Oppdater foreldre-referanser
+            parent_updates = 0
+            for i, (_, _, _, _, parent_id) in enumerate(adjusted_comments):
+                original_comment_id = i + 1
+                
+                if parent_id is not None and original_comment_id in inserted_comments:
+                    if parent_id in inserted_comments:
+                        try:
+                            new_comment_id = inserted_comments[original_comment_id]
+                            new_parent_id = inserted_comments[parent_id]
+                            
+                            # Oppdater forelder-referansen
+                            db.execute(
+                                "UPDATE KOMMENTARER SET forelder_kommentar_id = ? WHERE kommentar_id = ?",
+                                (new_parent_id, new_comment_id)
+                            )
+                            parent_updates += 1
+                            
+                        except Exception as e:
+                            failure_details.append(f"Feil ved oppdatering av forelder for kommentar {original_comment_id}: {str(e)}")
+            
+            # Sjekk antall kommentarer etter innsetting
+            after = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
+            after_count = after['count'] if after else 0
+            
+            # Forbered detaljert feilrapport
+            failure_report = ""
+            if failure_details:
+                failure_report = "<h4>Detaljer om feil:</h4><ul>"
+                for detail in failure_details:
+                    failure_report += f"<li>{detail}</li>"
+                failure_report += "</ul>"
+            
+            return f"""
+            <h3>Komplett kommentar-fiks er fullført!</h3>
+            <p>Før: {existing_count} kommentarer</p>
+            <p>Etter: {after_count} kommentarer</p>
+            <p>Forsøkt å legge til: {len(adjusted_comments)} kommentarer</p>
+            <p>Vellykket lagt til: {inserted_count} kommentarer</p>
+            <p>Foreldre-referanser oppdatert: {parent_updates}</p>
+            
+            {user_info}
+            
+            {mapping_info}
+            
+            {failure_report}
+            
+            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
+            <p><a href="/">Gå til forsiden</a></p>
+            """
+    except Exception as e:
+        return f"Generell feil ved fiksing av kommentarer: {str(e)}"
+
+
+@app.route('/debug_comments')
+def debug_comments():
+    with Database() as db:
+        # Sjekk om kommentarer finnes i det hele tatt
+        all_comments = db.fetchall("SELECT * FROM KOMMENTARER")
+        comment_count = len(all_comments)
+        
+        # Sjekk om kommentarer er knyttet til innlegg
+        comments_per_post = db.fetchall("""
+            SELECT innlegg_id, COUNT(*) as comment_count 
+            FROM KOMMENTARER 
+            GROUP BY innlegg_id
+        """)
+        
+        return f"Totalt antall kommentarer: {comment_count}<br>Kommentarer per innlegg: {comments_per_post}"
 
 # CREATE - Process post creation
 @app.route('/posts/create', methods=['POST'])
