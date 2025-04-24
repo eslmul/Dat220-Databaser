@@ -68,3 +68,4 @@ erDiagram
     BRUKERE ||--o{ FØLGER : "følges av som følges"
     INNLEGG ||--o{ INNLEGG_TAGGER : "har"
     TAGGER ||--o{ INNLEGG_TAGGER : "tilknyttet til"
+    
