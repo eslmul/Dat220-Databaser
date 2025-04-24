@@ -8,10 +8,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For flash messages and sessions
 
 UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB maks filstørrelse
 
 # Opprett upload-mappen hvis den ikke finnes
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -50,13 +47,10 @@ def edit_user(user_id):
         bio = request.form['bio']
         status = request.form['status']
         
-        # Keep existing profile image
-        profile_image = user['profilbilde']  # Default to existing image
-        
         # Update user data
         db.execute(
-            "UPDATE BRUKERE SET bio = ?, status = ?, profilbilde = ? WHERE bruker_id = ?",
-            (bio, status, profile_image, user_id)
+            "UPDATE BRUKERE SET bio = ?, status = ? WHERE bruker_id = ?",
+            (bio, status, user_id)
         )
         
     flash('User updated successfully!', 'success')
@@ -67,21 +61,18 @@ def edit_user(user_id):
 def format_date_fields(item, date_fields=None):
     if not item:
         return None
-        
+    
     # Convert Row to dict if it's not already
     if not isinstance(item, dict):
         item = dict(item)
-        
+    
     # Process date fields if specified
     if date_fields:
         for field in date_fields:
-            if field in item and item[field]:
-                # Parse the date string into a datetime object
+            if field in item and item[field] and isinstance(item[field], str):
                 try:
-                    if 'T' in item[field]:  # ISO format
-                        item[field] = datetime.fromisoformat(item[field].replace('Z', '+00:00'))
-                    else:  # SQLite default format
-                        item[field] = datetime.strptime(item[field], '%Y-%m-%d %H:%M:%S')
+                    # SQLite default format
+                    item[field] = datetime.strptime(item[field], '%Y-%m-%d %H:%M:%S')
                 except (ValueError, TypeError):
                     try:
                         # Try date-only format
@@ -99,73 +90,10 @@ def initialize_database():
         if not user_count or user_count['count'] < 10:
             try:
                 print("Legger til testdata...")
-                # 1. Sjekk sti til SQL-filen
-                sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'MySQL', 'social_media_sample_data.sql')
-                
-                # Hvis filen ikke finnes på den forventede stien, prøv alternativer
-                if not os.path.exists(sql_file_path):
-                    alternative_paths = [
-                        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'MySQL', 'social_media_sample_data.sql'),
-                        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'social_media_sample_data.sql'),
-                        'MySQL/social_media_sample_data.sql',
-                        'social_media_sample_data.sql'
-                    ]
-                    
-                    for alt_path in alternative_paths:
-                        if os.path.exists(alt_path):
-                            sql_file_path = alt_path
-                            print(f"Fant SQL-fil på: {alt_path}")
-                            break
-                
-                # 2. Les og kjør SQL-kommandoene direkte hvis filen finnes
-                if os.path.exists(sql_file_path):
-                    print(f"Importerer data fra {sql_file_path}...")
-                    with open(sql_file_path, 'r', encoding='utf-8') as f:
-                        sql_script = f.read()
-                    
-                    # Fjern kommentarer og tom plass
-                    import re
-                    sql_script = re.sub(r'--.*?\n', '\n', sql_script)
-                    
-                    # Del opp i statements basert på semikolon
-                    statements = []
-                    current_statement = ""
-                    
-                    for line in sql_script.split('\n'):
-                        line = line.strip()
-                        if not line or line.startswith('--'):
-                            continue
-                            
-                        current_statement += line + " "
-                        
-                        if line.endswith(';'):
-                            statements.append(current_statement.strip())
-                            current_statement = ""
-                    
-                    # Filtrer ut bare INSERT-statements og kjør dem
-                    insert_statements = [stmt for stmt in statements if stmt.upper().startswith('INSERT')]
-                    
-                    # Slå av foreign key sjekker midlertidig hvis det er SET FOREIGN_KEY_CHECKS = 0 i filen
-                    db.execute("PRAGMA foreign_keys = OFF")
-                    
-                    for stmt in insert_statements:
-                        try:
-                            # Erstatt MySQL-spesifikk syntaks
-                            stmt = stmt.replace('NOW()', 'CURRENT_TIMESTAMP')
-                            db.execute(stmt)
-                        except Exception as e:
-                            print(f"Feil ved utføring av SQL: {e}")
-                            print(f"Statement: {stmt}")
-                    
-                    # Slå på foreign key sjekker igjen
-                    db.execute("PRAGMA foreign_keys = ON")
-                    print("SQL-import fullført!")
-                else:
-                    print("Kunne ikke finne SQL-filen, prøver add_sample_data() i stedet...")
-                    add_sample_data()
+                import_sql_sample_data()
             except Exception as e:
-                print(f"Feil ved initialisering av testdata: {e}")
-                print("Prøver å legge til enkle testdata...")
+                print(f"Feil ved import av testdata: {e}")
+                print("Legger til enkle testdata i stedet...")
                 add_sample_data()
 
 # Call initialization function during startup
@@ -276,8 +204,7 @@ def follow_user(user_id):
 def show_create_user():
     return render_template('users/create.html')
 
-# CREATE - Process user creation
-# Duplicate function removed to resolve redefinition error.
+
 
 # UPDATE - Show user edit form
 @app.route('/users/<int:user_id>/edit', methods=['GET'])
@@ -314,28 +241,7 @@ def list_posts():
             """)
             
             # Format date fields properly
-            formatted_posts = []
-            for post in posts:
-                post_dict = dict(post)
-                
-                # Ensure dates are properly formatted as datetime objects
-                for date_field in ['opprettet_dato', 'oppdatert_dato']:
-                    if date_field in post_dict and post_dict[date_field]:
-                        try:
-                            if isinstance(post_dict[date_field], str):
-                                if 'T' in post_dict[date_field]:  # ISO format
-                                    post_dict[date_field] = datetime.fromisoformat(post_dict[date_field].replace('Z', '+00:00'))
-                                else:  # SQLite default format
-                                    post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d %H:%M:%S')
-                        except (ValueError, TypeError):
-                            try:
-                                # Try date-only format
-                                post_dict[date_field] = datetime.strptime(post_dict[date_field], '%Y-%m-%d')
-                            except (ValueError, TypeError):
-                                # If all parsing fails, provide a default datetime to avoid template errors
-                                post_dict[date_field] = datetime.now()
-                
-                formatted_posts.append(post_dict)
+            formatted_posts = [format_date_fields(post, ['opprettet_dato', 'oppdatert_dato']) for post in posts]
             
             return render_template('posts/list.html', posts=formatted_posts)
             
@@ -372,11 +278,6 @@ def view_post(post_id):
             ORDER BY k.opprettet_dato ASC
         """, (post_id,))
 
-        print(f"DEBUG: Innlegg ID: {post_id}")
-        print(f"DEBUG: Antall kommentarer funnet: {len(comments) if comments else 0}")
-        for comment in comments:
-            print(f"DEBUG: Kommentar ID: {comment['kommentar_id']}, Innhold: {comment['innhold']}")
-        
         comments = [format_date_fields(comment, ['opprettet_dato']) for comment in comments]
         
         # Get replies for each comment
@@ -1080,231 +981,6 @@ def add_reaction(post_id):
         flash(f'Feil ved håndtering av reaksjon: {str(e)}', 'danger')
         return redirect(url_for('view_post', post_id=post_id))
     
-
-@app.route('/fix_all_relations', methods=['GET'])
-def fix_all_relations():
-    try:
-        with Database() as db:
-            # Slett eksisterende relasjoner
-            db.execute("DELETE FROM INNLEGG_TAGGER")
-            db.execute("DELETE FROM REAKSJONER")
-            db.execute("DELETE FROM KOMMENTARER")
-            
-            # Hent alle faktiske brukere, innlegg og tagger
-            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE ORDER BY bruker_id")
-            posts = db.fetchall("SELECT innlegg_id, innhold FROM INNLEGG ORDER BY opprettet_dato ASC")
-            tags = db.fetchall("SELECT tag_id, navn FROM TAGGER ORDER BY tag_id")
-            
-            # Opprett mappinger fra opprinnelige IDer til faktiske IDer
-            post_mapping = {}
-            for i, post in enumerate(posts):
-                original_id = i + 1  # 1-basert indeksering
-                post_mapping[original_id] = post['innlegg_id']
-            
-            user_mapping = {}
-            for i, user in enumerate(users):
-                original_id = i + 1  # 1-basert indeksering
-                user_mapping[original_id] = user['bruker_id']
-            
-            tag_mapping = {}
-            for i, tag in enumerate(tags):
-                original_id = i + 1  # 1-basert indeksering
-                tag_mapping[original_id] = tag['tag_id']
-            
-            # Samle info om mappingene
-            mapping_info = "<h4>Mappinger:</h4>"
-            mapping_info += "<p>Innlegg: Original ID → Faktisk ID</p><ul>"
-            for orig_id, actual_id in post_mapping.items():
-                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
-            mapping_info += "</ul>"
-            
-            mapping_info += "<p>Brukere: Original ID → Faktisk ID</p><ul>"
-            for orig_id, actual_id in user_mapping.items():
-                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
-            mapping_info += "</ul>"
-            
-            mapping_info += "<p>Tagger: Original ID → Faktisk ID</p><ul>"
-            for orig_id, actual_id in tag_mapping.items():
-                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
-            mapping_info += "</ul>"
-            
-            # 1. Legg inn kommentarer
-            comments_data = [
-                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
-                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
-                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
-                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
-                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
-                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
-                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
-                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
-                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
-                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
-                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
-                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
-                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
-                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
-            ]
-            
-            comment_mapping = {}  # For å mappe originale kommentar-IDer til nye
-            comments_inserted = 0
-            comments_failed = 0
-            
-            for i, (content, date, orig_post_id, orig_user_id, _) in enumerate(comments_data):
-                original_comment_id = i + 1
-                
-                try:
-                    actual_post_id = post_mapping.get(orig_post_id)
-                    actual_user_id = user_mapping.get(orig_user_id)
-                    
-                    if actual_post_id and actual_user_id:
-                        # Legg inn kommentar uten forelder-referanse først
-                        new_comment_id = db.execute(
-                            "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
-                            "VALUES (?, ?, ?, ?, NULL)",
-                            (content, date, actual_post_id, actual_user_id)
-                        )
-                        
-                        comment_mapping[original_comment_id] = new_comment_id
-                        comments_inserted += 1
-                    else:
-                        comments_failed += 1
-                        print(f"Mangler mapping for Post ID {orig_post_id} eller User ID {orig_user_id}")
-                except Exception as e:
-                    comments_failed += 1
-                    print(f"Feil ved innsetting av kommentar: {str(e)}")
-            
-            # Oppdater foreldre-referanser
-            parent_updates = 0
-            for i, (_, _, _, _, parent_id) in enumerate(comments_data):
-                original_comment_id = i + 1
-                
-                if parent_id and parent_id in comment_mapping and original_comment_id in comment_mapping:
-                    try:
-                        db.execute(
-                            "UPDATE KOMMENTARER SET forelder_kommentar_id = ? WHERE kommentar_id = ?",
-                            (comment_mapping[parent_id], comment_mapping[original_comment_id])
-                        )
-                        parent_updates += 1
-                    except Exception as e:
-                        print(f"Feil ved oppdatering av forelder: {str(e)}")
-            
-            # 2. Legg inn reaksjoner
-            reactions_data = [
-                ('like', '2023-07-01 19:05:00', 2, 1, None),
-                ('love', '2023-07-01 19:30:00', 3, 1, None),
-                ('like', '2023-07-02 13:10:00', 5, 2, None),
-                ('like', '2023-07-02 13:45:00', 6, 2, None),
-                ('like', '2023-07-03 10:20:00', 4, 3, None),
-                ('like', '2023-07-03 11:00:00', 5, 3, None),
-                ('like', '2023-07-04 17:00:00', 8, 4, None),
-                ('like', '2023-07-05 08:30:00', 9, 5, None),
-                ('love', '2023-07-06 10:40:00', 11, 6, None),
-                ('like', '2023-07-07 14:50:00', 12, 7, None),
-                ('like', '2023-07-08 21:00:00', 1, 8, None),
-                ('like', '2023-07-09 19:20:00', 2, 9, None),
-                ('like', '2023-07-10 09:10:00', 3, 10, None),
-                ('like', '2023-07-11 16:00:00', 5, 11, None),
-                ('like', '2023-07-01 19:15:00', 4, None, 1),
-                ('like', '2023-07-02 14:00:00', 7, None, 2)
-            ]
-            
-            reactions_inserted = 0
-            reactions_failed = 0
-            
-            for reaction_type, date, orig_user_id, orig_post_id, orig_comment_id in reactions_data:
-                try:
-                    actual_user_id = user_mapping.get(orig_user_id)
-                    actual_post_id = post_mapping.get(orig_post_id) if orig_post_id else None
-                    actual_comment_id = comment_mapping.get(orig_comment_id) if orig_comment_id else None
-                    
-                    if actual_user_id and (actual_post_id or actual_comment_id):
-                        db.execute(
-                            "INSERT INTO REAKSJONER (reaksjon_type, opprettet_dato, bruker_id, innlegg_id, kommentar_id) "
-                            "VALUES (?, ?, ?, ?, ?)",
-                            (reaction_type, date, actual_user_id, actual_post_id, actual_comment_id)
-                        )
-                        reactions_inserted += 1
-                    else:
-                        reactions_failed += 1
-                except Exception as e:
-                    reactions_failed += 1
-                    print(f"Feil ved innsetting av reaksjon: {str(e)}")
-            
-            # 3. Legg inn innlegg-tagger
-            tags_data = [
-                (1, 1),  # natur
-                (2, 2),  # mat
-                (3, 3),  # teknologi
-                (4, 4),  # reise
-                (5, 5),  # trening
-                (6, 6),  # musikk
-                (7, 7),  # kunst
-                (8, 8),  # litteratur
-                (9, 9),  # film
-                (10, 11), # jobb
-                (11, 12), # familie
-                (12, 10), # utdanning
-                (13, 1),  # natur (for kameratestbilde)
-                (13, 7),  # kunst (for kameratestbilde)
-                (14, 10)  # utdanning (for eksamen-innlegget)
-            ]
-            
-            tags_inserted = 0
-            tags_failed = 0
-            
-            for orig_post_id, orig_tag_id in tags_data:
-                try:
-                    actual_post_id = post_mapping.get(orig_post_id)
-                    actual_tag_id = tag_mapping.get(orig_tag_id)
-                    
-                    if actual_post_id and actual_tag_id:
-                        db.execute(
-                            "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
-                            (actual_post_id, actual_tag_id)
-                        )
-                        tags_inserted += 1
-                    else:
-                        tags_failed += 1
-                except Exception as e:
-                    tags_failed += 1
-                    print(f"Feil ved innsetting av innlegg-tag: {str(e)}")
-            
-            # Samle statistikk
-            stats = {
-                'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER")['count'],
-                'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER")['count'],
-                'post_tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER")['count']
-            }
-            
-            return f"""
-            <h2>Alle relasjoner er fikset!</h2>
-            
-            <h3>Kommentarer</h3>
-            <p>Lagt til: {comments_inserted} av {len(comments_data)}</p>
-            <p>Feilet: {comments_failed}</p>
-            <p>Foreldre-referanser oppdatert: {parent_updates}</p>
-            
-            <h3>Reaksjoner</h3>
-            <p>Lagt til: {reactions_inserted} av {len(reactions_data)}</p>
-            <p>Feilet: {reactions_failed}</p>
-            
-            <h3>Innlegg-tagger</h3>
-            <p>Lagt til: {tags_inserted} av {len(tags_data)}</p>
-            <p>Feilet: {tags_failed}</p>
-            
-            <h3>Database status</h3>
-            <p>Antall kommentarer: {stats['comments']}</p>
-            <p>Antall reaksjoner: {stats['reactions']}</p>
-            <p>Antall innlegg-tagger: {stats['post_tags']}</p>
-            
-            {mapping_info}
-            
-            <p><a href="/">Gå til forsiden</a></p>
-            """
-    except Exception as e:
-        return f"Generell feil ved fiksing av relasjoner: {str(e)}"
-
 if __name__ == '__main__':
     app.run(debug=True)
     
