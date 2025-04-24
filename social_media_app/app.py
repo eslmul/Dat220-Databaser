@@ -18,38 +18,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB maks filstørrelse
 # Opprett upload-mappen hvis den ikke finnes
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Hjelpefunksjon for å sjekke tillatte filtyper
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Hjelpefunksjon for å håndtere bildeopplasting
-def handle_image_upload(file, old_filename=None):
-    if file and file.filename and allowed_file(file.filename):
-        # Fjern gammel fil hvis en ny lastes opp
-        if old_filename and old_filename != 'default.jpg':
-            old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
-            if os.path.exists(old_file_path):
-                try:
-                    os.remove(old_file_path)
-                except Exception:
-                    pass  # Ignorerer feil ved sletting av gammel fil
-                
-        # Generer et unikt filnavn for å unngå kollisjoner
-        filename = secure_filename(file.filename)
-        file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
-        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-        
-        # Lagre filen
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(file_path)
-        
-        return unique_filename
-    
-    # Returner gammel filnavn hvis ingen ny fil ble lastet opp
-    return old_filename
-
-# Modifiser CREATE - Process user creation for å støtte bildeopplasting
 @app.route('/users/create', methods=['POST'])
 def create_user():
     username = request.form['brukernavn']
@@ -58,17 +27,12 @@ def create_user():
     bio = request.form['bio']
     birth_date = request.form['fødselsdato'] if request.form['fødselsdato'] else None
     
-    # Håndter profilbilde-opplasting
-    profile_image = None
-    if 'profilbilde' in request.files:
-        profile_image = handle_image_upload(request.files['profilbilde'])
-    
     try:
         with Database() as db:
             user_id = db.execute(
-                "INSERT INTO BRUKERE (brukernavn, epost, passord_hash, profilbilde, bio, fødselsdato, status) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'aktiv')",
-                (username, email, password_hash, profile_image, bio, birth_date)
+                "INSERT INTO BRUKERE (brukernavn, epost, passord_hash, bio, fødselsdato, status) "
+                "VALUES (?, ?, ?, ?, ?, 'aktiv')",
+                (username, email, password_hash, bio, birth_date)
             )
         flash('User created successfully!', 'success')
         return redirect(url_for('view_user', user_id=user_id))
@@ -76,7 +40,6 @@ def create_user():
         flash(f'Error creating user: {str(e)}', 'danger')
         return render_template('users/create.html')
 
-# Modifiser UPDATE - Process user update for å støtte bildeopplasting
 @app.route('/users/<int:user_id>/edit', methods=['POST'])
 def edit_user(user_id):
     with Database() as db:
@@ -85,14 +48,12 @@ def edit_user(user_id):
         if not user:
             flash('User not found', 'danger')
             return redirect(url_for('list_users'))
-        
+            
         bio = request.form['bio']
         status = request.form['status']
         
-        # Håndter profilbilde-opplasting
-        profile_image = user['profilbilde']  # Default til eksisterende bilde
-        if 'profilbilde' in request.files and request.files['profilbilde'].filename:
-            profile_image = handle_image_upload(request.files['profilbilde'], old_filename=profile_image)
+        # Keep existing profile image
+        profile_image = user['profilbilde']  # Default to existing image
         
         # Update user data
         db.execute(
@@ -103,41 +64,6 @@ def edit_user(user_id):
     flash('User updated successfully!', 'success')
     return redirect(url_for('view_user', user_id=user_id))
 
-
-# Legg til route for bildeopplasting til innlegg
-@app.route('/posts/<int:post_id>/upload_image', methods=['POST'])
-def upload_post_image(post_id):
-    try:
-        with Database() as db:
-            # Sjekk om innlegget eksisterer
-            post = db.fetchone("SELECT * FROM INNLEGG WHERE innlegg_id = ?", (post_id,))
-            if not post:
-                flash('Post not found', 'danger')
-                return redirect(url_for('list_posts'))
-            
-            # Håndter bildeopplasting
-            if 'image' in request.files:
-                image_filename = handle_image_upload(request.files['image'])
-                if image_filename:
-                    # Legg til bildestien i innleggsinnholdet
-                    updated_content = post['innhold'] + f'\n\n<img src="/static/uploads/{image_filename}" class="img-fluid rounded" alt="Post image">'
-                    
-                    # Oppdater innlegget
-                    db.execute(
-                        "UPDATE INNLEGG SET innhold = ?, oppdatert_dato = datetime('now') WHERE innlegg_id = ?",
-                        (updated_content, post_id)
-                    )
-                    
-                    flash('Image uploaded and added to post', 'success')
-                else:
-                    flash('Invalid file type or upload failed', 'danger')
-            else:
-                flash('No file selected', 'warning')
-                
-        return redirect(url_for('view_post', post_id=post_id))
-    except Exception as e:
-        flash(f'Error uploading image: {str(e)}', 'danger')
-        return redirect(url_for('view_post', post_id=post_id))
 
 # Helper function to convert SQLite rows to dictionaries with proper datetime objects
 def format_date_fields(item, date_fields=None):
@@ -366,8 +292,7 @@ def show_edit_user(user_id):
     flash('User not found', 'danger')
     return redirect(url_for('list_users'))
 
-# UPDATE - Process user update
-# Duplicate function removed to resolve redefinition error.
+
 
 # DELETE - Delete user
 @app.route('/users/<int:user_id>/delete', methods=['POST'])
@@ -420,73 +345,7 @@ def list_posts():
         flash(f'Error fetching posts: {str(e)}', 'danger')
         return render_template('posts/list.html', posts=[])
     
-@app.route('/reset_posts', methods=['GET'])
-def reset_posts():
-    try:
-        with Database() as db:
-            # First delete all existing posts relationships
-            db.execute("DELETE FROM INNLEGG_TAGGER")
-            db.execute("DELETE FROM KOMMENTARER")
-            db.execute("DELETE FROM REAKSJONER WHERE innlegg_id IS NOT NULL")
-            db.execute("DELETE FROM INNLEGG")
-            
-            # Now insert the correct posts from the sample data
-            # These mappings match the original data from social_media_sample_data.sql
-            post_data = [
-                ('Fantastisk solnedgang fra fjellturen i dag! #natur #fjelltur', '2023-07-01 18:45:00', 'offentlig', 'johansen94'),
-                ('Ny oppskrift på hjemmelaget pasta med sesongbaserte råvarer. Deilig sommermat!', '2023-07-02 12:30:00', 'offentlig', 'jensten'),
-                ('Har nettopp lært meg grunnleggende Python-programmering. Fascinerende!', '2023-07-03 09:15:00', 'offentlig', 'olekristian'),
-                ('På vei til Roma! Noen tips til hva jeg bør se?', '2023-07-04 16:20:00', 'offentlig', 'linelise'),
-                ('Min nye treningsrutine har gitt gode resultater. Deler gjerne erfaringer.', '2023-07-05 07:45:00', 'offentlig', 'pernillen'),
-                ('Var på konsert med favorittbandet mitt i går. Helt utrolig opplevelse!', '2023-07-06 10:10:00', 'offentlig', 'torhild'),
-                ('Besøkte en fascinerende kunstutstilling i helgen. Anbefales!', '2023-07-07 14:25:00', 'offentlig', 'karianne'),
-                ('Har nettopp lest en fantastisk roman. Noen andre som har lest "Havet" av Jon Sorensen?', '2023-07-08 20:30:00', 'offentlig', 'mariaberg'),
-                ('Så den nye sci-fi filmen i går. Imponerende effekter!', '2023-07-09 19:05:00', 'offentlig', 'magnush'),
-                ('Første dag i ny jobb! Spent på hva framtiden bringer.', '2023-07-10 08:50:00', 'offentlig', 'martingm'),
-                ('Familietur til hytta. Barna koser seg med fiske og bading.', '2023-07-11 15:40:00', 'venner', 'annesofi'),
-                ('Tenker på å ta et nytt kurs i markedsføring. Noen anbefalinger?', '2023-07-12 11:15:00', 'offentlig', 'pernillen'),
-                ('Tester ut nytt kamera. Her er noen av de første bildene.', '2023-07-13 13:20:00', 'offentlig', 'johansen94'),
-                ('Endelig ferdig med eksamen! Nå venter sommerferie.', '2023-07-14 16:55:00', 'offentlig', 'anderskr')
-            ]
-            
-            # Insert posts with correct user IDs
-            for content, date, visibility, username in post_data:
-                # Find the user ID for this username
-                user = db.fetchone("SELECT bruker_id FROM BRUKERE WHERE brukernavn = ?", (username,))
-                if user:
-                    db.execute(
-                        "INSERT INTO INNLEGG (innhold, opprettet_dato, synlighet, bruker_id) VALUES (?, ?, ?, ?)",
-                        (content, date, visibility, user['bruker_id'])
-                    )
-            
-            # Recreate tag associations
-            tag_associations = [
-                (1, 1),  # natur
-                (2, 2),  # mat
-                (3, 3),  # teknologi
-                (4, 4),  # reise
-                (5, 5),  # trening
-                (6, 6),  # musikk
-                (7, 7),  # kunst
-                (8, 8),  # litteratur
-                (9, 9),  # film
-                (10, 11), # jobb
-                (11, 12), # familie
-                (12, 10), # utdanning
-                (13, 1),  # natur (for kameratestbilde)
-                (13, 7),  # kunst (for kameratestbilde)
-                (14, 10)  # utdanning (for eksamen-innlegget)
-            ]
-            
-            for post_id, tag_id in tag_associations:
-                db.execute("INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)", (post_id, tag_id))
-                
-            flash('Posts have been reset to original sample data!', 'success')
-            return redirect(url_for('list_posts'))
-            
-    except Exception as e:
-        flash(f'Error resetting posts: {str(e)}', 'danger')
-        return redirect(url_for('list_posts'))
+
 
 # READ - View single post with comments
 @app.route('/posts/<int:post_id>')
@@ -567,291 +426,8 @@ def show_create_post():
         tags = db.fetchall("SELECT * FROM TAGGER")
     return render_template('posts/create.html', users=users, tags=tags)
 
-@app.route('/fix_comments', methods=['GET'])
-def fix_comments():
-    try:
-        with Database() as db:
-            # Sjekk antall eksisterende kommentarer
-            existing = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
-            existing_count = existing['count'] if existing else 0
-            
-            # Slett eksisterende kommentarer hvis nødvendig
-            db.execute("DELETE FROM KOMMENTARER")
-            
-            # Sjekk om brukere finnes
-            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE")
-            user_ids = [user['bruker_id'] for user in users]
-            user_info = {user['bruker_id']: user['brukernavn'] for user in users}
-            
-            # Sjekk om innlegg finnes
-            posts = db.fetchall("SELECT innlegg_id FROM INNLEGG")
-            post_ids = [post['innlegg_id'] for post in posts]
-            
-            # Vis informasjon om tilgjengelige brukere og innlegg
-            debug_info = f"<h4>Tilgjengelige brukere ({len(user_ids)}): {user_ids}</h4>"
-            debug_info += f"<h4>Tilgjengelige innlegg ({len(post_ids)}): {post_ids}</h4>"
-            
-            # Legg inn kommentarer fra sample data
-            comments_data = [
-                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
-                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
-                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
-                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
-                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
-                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
-                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
-                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
-                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
-                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
-                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
-                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
-                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
-                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
-            ]
-            
-            inserted_count = 0
-            failure_details = []
-            
-            for comment_data in comments_data:
-                content, date, post_id, user_id, parent_id = comment_data
-                
-                try:
-                    # Sjekk om innlegg og bruker finnes
-                    post_exists = post_id in post_ids
-                    user_exists = user_id in user_ids
-                    
-                    if not post_exists:
-                        failure_details.append(f"Innlegg med ID {post_id} finnes ikke")
-                        continue
-                        
-                    if not user_exists:
-                        failure_details.append(f"Bruker med ID {user_id} finnes ikke")
-                        continue
-                    
-                    # Legg til kommentaren
-                    comment_id = db.execute(
-                        "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
-                        "VALUES (?, ?, ?, ?, ?)",
-                        (content, date, post_id, user_id, None)  # Setter parent_id til None først
-                    )
-                    
-                    inserted_count += 1
-                    
-                except Exception as e:
-                    failure_details.append(f"Feil ved innsetting av '{content[:20]}...': {str(e)}")
-            
-            # Oppdater senere forelder-referanser om nødvendig
-            
-            # Sjekk antall kommentarer etter innsetting
-            after = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
-            after_count = after['count'] if after else 0
-            
-            # Forbered detaljert feilrapport
-            failure_report = "<h4>Detaljer om feil:</h4><ul>"
-            for detail in failure_details:
-                failure_report += f"<li>{detail}</li>"
-            failure_report += "</ul>"
-            
-            return f"""
-            <h3>Kommentar-fiksen er fullført!</h3>
-            <p>Før: {existing_count} kommentarer</p>
-            <p>Etter: {after_count} kommentarer</p>
-            <p>Forsøkt å legge til: {len(comments_data)} kommentarer</p>
-            <p>Vellykket lagt til: {inserted_count} kommentarer</p>
-            <p>Feilet: {len(comments_data) - inserted_count} kommentarer</p>
-            
-            {debug_info}
-            
-            {failure_report}
-            
-            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
-            <p><a href="/reset_db">Tilbakestill databasen</a></p>
-            """
-    except Exception as e:
-        return f"Generell feil ved fiksing av kommentarer: {str(e)}"
-
-# Legg også til en rute for å tilbakestille hele databasen
-@app.route('/reset_db')
-def reset_db():
-    try:
-        # Kjør init_db og import_sql_sample_data
-        init_db()
-        success = import_sql_sample_data()
-        
-        return f"""
-        <h3>Database tilbakestilt</h3>
-        <p>Status: {'Vellykket' if success else 'Feilet'}</p>
-        <p><a href="/debug_comments">Se kommentaroversikt</a></p>
-        <p><a href="/">Gå til forsiden</a></p>
-        """
-    except Exception as e:
-        return f"Feil ved tilbakestilling av database: {str(e)}"
-    
-@app.route('/fix_comments_complete', methods=['GET'])
-def fix_comments_complete():
-    try:
-        with Database() as db:
-            # Sjekk antall eksisterende kommentarer
-            existing = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
-            existing_count = existing['count'] if existing else 0
-            
-            # Slett eksisterende kommentarer
-            db.execute("DELETE FROM KOMMENTARER")
-            
-            # Hent alle faktiske brukere og innlegg
-            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE ORDER BY bruker_id")
-            posts = db.fetchall("SELECT innlegg_id, innhold FROM INNLEGG ORDER BY opprettet_dato ASC")
-            
-            # Vis bruker-informasjon
-            user_info = "<h4>Brukere i databasen:</h4><ul>"
-            for user in users:
-                user_info += f"<li>ID {user['bruker_id']}: {user['brukernavn']}</li>"
-            user_info += "</ul>"
-            
-            # Opprett mappinger fra opprinnelige IDer til faktiske IDer
-            post_mapping = {}
-            for i, post in enumerate(posts):
-                original_id = i + 1
-                post_mapping[original_id] = post['innlegg_id']
-            
-            # Lag en mapping for brukere
-            # I den opprinnelige dataen, bruker-ID 1-12 tilsvarer de første 12 brukerne i databasen
-            user_mapping = {}
-            for i, user in enumerate(users):
-                original_id = i + 1
-                user_mapping[original_id] = user['bruker_id']
-            
-            # Vis mappingene
-            mapping_info = "<h4>Innlegg-mapping:</h4><ul>"
-            for orig_id, actual_id in post_mapping.items():
-                mapping_info += f"<li>Original ID {orig_id} → Faktisk ID {actual_id}</li>"
-            mapping_info += "</ul>"
-            
-            mapping_info += "<h4>Bruker-mapping:</h4><ul>"
-            for orig_id, actual_id in user_mapping.items():
-                mapping_info += f"<li>Original ID {orig_id} → Faktisk ID {actual_id}</li>"
-            mapping_info += "</ul>"
-            
-            # Opprinnelige kommentar-data
-            comments_data = [
-                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
-                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
-                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
-                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
-                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
-                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
-                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
-                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
-                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
-                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
-                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
-                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
-                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
-                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
-            ]
-            
-            # Juster kommentarene til å bruke faktiske innlegg-IDer og bruker-IDer
-            adjusted_comments = []
-            for content, date, orig_post_id, orig_user_id, parent_comment_id in comments_data:
-                actual_post_id = post_mapping.get(orig_post_id)
-                actual_user_id = user_mapping.get(orig_user_id)
-                
-                if actual_post_id is not None and actual_user_id is not None:
-                    adjusted_comments.append((content, date, actual_post_id, actual_user_id, parent_comment_id))
-            
-            # Legg inn første omgang med kommentarer (uten foreldre)
-            inserted_comments = {}  # Original kommentar-ID til ny kommentar-ID
-            inserted_count = 0
-            failure_details = []
-            
-            for i, (content, date, post_id, user_id, _) in enumerate(adjusted_comments):
-                original_comment_id = i + 1  # 1-basert kommentar-ID
-                
-                try:
-                    # Legg til kommentar uten forelder først
-                    new_comment_id = db.execute(
-                        "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
-                        "VALUES (?, ?, ?, ?, NULL)",
-                        (content, date, post_id, user_id)
-                    )
-                    
-                    # Lagre mapping mellom original kommentar-ID og ny kommentar-ID
-                    inserted_comments[original_comment_id] = new_comment_id
-                    inserted_count += 1
-                    
-                except Exception as e:
-                    failure_details.append(f"Feil ved innsetting av kommentar {original_comment_id}: {str(e)}")
-                    print(f"Feil ved innsetting: PostID={post_id}, UserID={user_id}, Error={str(e)}")
-            
-            # Oppdater foreldre-referanser
-            parent_updates = 0
-            for i, (_, _, _, _, parent_id) in enumerate(adjusted_comments):
-                original_comment_id = i + 1
-                
-                if parent_id is not None and original_comment_id in inserted_comments:
-                    if parent_id in inserted_comments:
-                        try:
-                            new_comment_id = inserted_comments[original_comment_id]
-                            new_parent_id = inserted_comments[parent_id]
-                            
-                            # Oppdater forelder-referansen
-                            db.execute(
-                                "UPDATE KOMMENTARER SET forelder_kommentar_id = ? WHERE kommentar_id = ?",
-                                (new_parent_id, new_comment_id)
-                            )
-                            parent_updates += 1
-                            
-                        except Exception as e:
-                            failure_details.append(f"Feil ved oppdatering av forelder for kommentar {original_comment_id}: {str(e)}")
-            
-            # Sjekk antall kommentarer etter innsetting
-            after = db.fetchone("SELECT COUNT(*) AS count FROM KOMMENTARER")
-            after_count = after['count'] if after else 0
-            
-            # Forbered detaljert feilrapport
-            failure_report = ""
-            if failure_details:
-                failure_report = "<h4>Detaljer om feil:</h4><ul>"
-                for detail in failure_details:
-                    failure_report += f"<li>{detail}</li>"
-                failure_report += "</ul>"
-            
-            return f"""
-            <h3>Komplett kommentar-fiks er fullført!</h3>
-            <p>Før: {existing_count} kommentarer</p>
-            <p>Etter: {after_count} kommentarer</p>
-            <p>Forsøkt å legge til: {len(adjusted_comments)} kommentarer</p>
-            <p>Vellykket lagt til: {inserted_count} kommentarer</p>
-            <p>Foreldre-referanser oppdatert: {parent_updates}</p>
-            
-            {user_info}
-            
-            {mapping_info}
-            
-            {failure_report}
-            
-            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
-            <p><a href="/">Gå til forsiden</a></p>
-            """
-    except Exception as e:
-        return f"Generell feil ved fiksing av kommentarer: {str(e)}"
 
 
-@app.route('/debug_comments')
-def debug_comments():
-    with Database() as db:
-        # Sjekk om kommentarer finnes i det hele tatt
-        all_comments = db.fetchall("SELECT * FROM KOMMENTARER")
-        comment_count = len(all_comments)
-        
-        # Sjekk om kommentarer er knyttet til innlegg
-        comments_per_post = db.fetchall("""
-            SELECT innlegg_id, COUNT(*) as comment_count 
-            FROM KOMMENTARER 
-            GROUP BY innlegg_id
-        """)
-        
-        return f"Totalt antall kommentarer: {comment_count}<br>Kommentarer per innlegg: {comments_per_post}"
 
 # CREATE - Process post creation
 @app.route('/posts/create', methods=['POST'])
@@ -1155,7 +731,6 @@ def platform_stats():
                 COUNT(DISTINCT r.reaksjon_id) AS total_reactions,
                 COUNT(DISTINCT t.tag_id) AS total_tags,
                 (SELECT COUNT(*) FROM FØLGER) AS total_follows,
-                (SELECT COUNT(*) FROM MELDINGER) AS total_messages,
                 ROUND(AVG(posts_per_user), 2) AS avg_posts_per_user,
                 ROUND(AVG(comments_per_user), 2) AS avg_comments_per_user,
                 ROUND(AVG(reactions_per_user), 2) AS avg_reactions_per_user
@@ -1412,7 +987,6 @@ def delete_tag(tag_id):
     return redirect(url_for('manage_tags'))
 
 
-
 # Route for tag popularity analysis
 @app.route('/tag_analysis')
 def tag_analysis():
@@ -1466,29 +1040,6 @@ def import_sample_data_endpoint():
     
     return redirect(url_for('index'))
 
-@app.route('/debug_db_stats')
-def debug_db_stats():
-    with Database() as db:
-        stats = {
-            'users': db.fetchone("SELECT COUNT(*) as count FROM BRUKERE")['count'],
-            'posts': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG")['count'],
-            'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER")['count'],
-            'tags': db.fetchone("SELECT COUNT(*) as count FROM TAGGER")['count'],
-            'post_tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER")['count'],
-            'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER")['count'],
-            'follows': db.fetchone("SELECT COUNT(*) as count FROM FØLGER")['count'],
-            'messages': db.fetchone("SELECT COUNT(*) as count FROM MELDINGER")['count']
-        }
-        
-        # Also check a specific post (e.g., post ID 1)
-        post_id = 1
-        post_stats = {
-            'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER WHERE innlegg_id = ?", (post_id,))['count'],
-            'tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER WHERE innlegg_id = ?", (post_id,))['count'],
-            'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER WHERE innlegg_id = ?", (post_id,))['count']
-        }
-        
-        return render_template('debug/db_stats.html', stats=stats, post_stats=post_stats, post_id=post_id)
     
     # Legg til denne ruten i app.py
 @app.route('/posts/<int:post_id>/react', methods=['POST'])
