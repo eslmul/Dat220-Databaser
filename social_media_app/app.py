@@ -7,14 +7,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For flash messages and sessions
 
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB maks filstørrelse
-
-# Opprett upload-mappen hvis den ikke finnes
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
 @app.route('/users/create', methods=['POST'])
