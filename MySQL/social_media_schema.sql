@@ -3,7 +3,6 @@
 
 -- Drop tables if they exist (in reverse order of creation to handle foreign key constraints)
 DROP TABLE IF EXISTS INNLEGG_TAGGER;
-DROP TABLE IF EXISTS MELDINGER;
 DROP TABLE IF EXISTS FØLGER;
 DROP TABLE IF EXISTS REAKSJONER;
 DROP TABLE IF EXISTS KOMMENTARER;
@@ -118,25 +117,6 @@ CREATE TABLE FØLGER (
     INDEX idx_status (status)
 );
 
--- Create MELDINGER (Messages) table
-CREATE TABLE MELDINGER (
-    melding_id INT AUTO_INCREMENT PRIMARY KEY,
-    innhold TEXT NOT NULL,
-    sendt_dato DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    lest_dato DATETIME,
-    avsender_id INT NOT NULL,
-    mottaker_id INT NOT NULL,
-    
-    -- Foreign key constraints
-    FOREIGN KEY (avsender_id) REFERENCES BRUKERE(bruker_id) ON DELETE CASCADE,
-    FOREIGN KEY (mottaker_id) REFERENCES BRUKERE(bruker_id) ON DELETE CASCADE,
-    
-    -- Adding indexes for frequently queried fields
-    INDEX idx_avsender_id (avsender_id),
-    INDEX idx_mottaker_id (mottaker_id),
-    INDEX idx_sendt_dato (sendt_dato),
-    INDEX idx_lest_dato (lest_dato)
-);
 
 -- Create TAGGER (Tags) table
 CREATE TABLE TAGGER (

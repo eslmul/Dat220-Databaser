@@ -123,19 +123,7 @@ def init_db():
         )
         ''')
         
-        # Create MELDINGER (Messages) table
-        db.execute('''
-        CREATE TABLE IF NOT EXISTS MELDINGER (
-            melding_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            innhold TEXT NOT NULL,
-            sendt_dato DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            lest_dato DATETIME,
-            avsender_id INTEGER NOT NULL,
-            mottaker_id INTEGER NOT NULL,
-            FOREIGN KEY (avsender_id) REFERENCES BRUKERE(bruker_id) ON DELETE CASCADE,
-            FOREIGN KEY (mottaker_id) REFERENCES BRUKERE(bruker_id) ON DELETE CASCADE
-        )
-        ''')
+
         
         # Create TAGGER (Tags) table
         db.execute('''
