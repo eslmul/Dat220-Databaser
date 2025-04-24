@@ -113,22 +113,7 @@ INSERT INTO FØLGER (følger_id, følger_bruker_id, opprettet_dato, status) VALU
 (11, 1, '2023-07-12 13:30:00', 'aktiv'),
 (12, 2, '2023-07-13 10:15:00', 'aktiv');
 
--- Insert sample MELDINGER (Messages)
-INSERT INTO MELDINGER (innhold, sendt_dato, lest_dato, avsender_id, mottaker_id) VALUES
-('Hei! Hvordan går det med deg?', '2023-07-15 10:30:00', '2023-07-15 10:45:00', 1, 2),
-('Hei! Bra, takk! Jobber du fortsatt med det fotooppdraget?', '2023-07-15 10:50:00', '2023-07-15 11:05:00', 2, 1),
-('Skal vi møtes for kaffe neste uke?', '2023-07-16 14:15:00', '2023-07-16 15:20:00', 3, 4),
-('Gjerne! Tirsdag passer bra for meg.', '2023-07-16 15:30:00', '2023-07-16 16:00:00', 4, 3),
-('Har du lest den nye artikkelen om AI?', '2023-07-17 09:45:00', '2023-07-17 10:30:00', 5, 6),
-('Ikke ennå, kan du sende meg lenken?', '2023-07-17 10:35:00', '2023-07-17 11:00:00', 6, 5),
-('Her er lenken: example.com/ai-article', '2023-07-17 11:10:00', '2023-07-17 11:45:00', 5, 6),
-('Takk! Skal lese den senere i dag.', '2023-07-17 11:50:00', '2023-07-17 12:15:00', 6, 5),
-('Gratulerer med dagen! Håper du har en fin bursdagsfeiring.', '2023-07-18 08:30:00', '2023-07-18 09:15:00', 7, 8),
-('Tusen takk! Det blir feiring med familien i kveld.', '2023-07-18 09:20:00', '2023-07-18 09:40:00', 8, 7),
-('Har du hørt om den nye restauranten som åpnet i sentrum?', '2023-07-19 13:25:00', '2023-07-19 14:10:00', 9, 10),
-('Nei, hva heter den?', '2023-07-19 14:15:00', '2023-07-19 14:30:00', 10, 9),
-('Den heter "Havets Skatter" og serverer sjømat.', '2023-07-19 14:35:00', '2023-07-19 15:00:00', 9, 10),
-('Høres spennende ut! Vi burde prøve den sammen.', '2023-07-19 15:05:00', NULL, 10, 9);
+
 
 -- Insert sample INNLEGG_TAGGER (Post-Tags)
 INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES

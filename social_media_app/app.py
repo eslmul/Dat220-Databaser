@@ -1530,6 +1530,232 @@ def add_reaction(post_id):
     except Exception as e:
         flash(f'Feil ved håndtering av reaksjon: {str(e)}', 'danger')
         return redirect(url_for('view_post', post_id=post_id))
+    
+
+@app.route('/fix_all_relations', methods=['GET'])
+def fix_all_relations():
+    try:
+        with Database() as db:
+            # Slett eksisterende relasjoner
+            db.execute("DELETE FROM INNLEGG_TAGGER")
+            db.execute("DELETE FROM REAKSJONER")
+            db.execute("DELETE FROM KOMMENTARER")
+            
+            # Hent alle faktiske brukere, innlegg og tagger
+            users = db.fetchall("SELECT bruker_id, brukernavn FROM BRUKERE ORDER BY bruker_id")
+            posts = db.fetchall("SELECT innlegg_id, innhold FROM INNLEGG ORDER BY opprettet_dato ASC")
+            tags = db.fetchall("SELECT tag_id, navn FROM TAGGER ORDER BY tag_id")
+            
+            # Opprett mappinger fra opprinnelige IDer til faktiske IDer
+            post_mapping = {}
+            for i, post in enumerate(posts):
+                original_id = i + 1  # 1-basert indeksering
+                post_mapping[original_id] = post['innlegg_id']
+            
+            user_mapping = {}
+            for i, user in enumerate(users):
+                original_id = i + 1  # 1-basert indeksering
+                user_mapping[original_id] = user['bruker_id']
+            
+            tag_mapping = {}
+            for i, tag in enumerate(tags):
+                original_id = i + 1  # 1-basert indeksering
+                tag_mapping[original_id] = tag['tag_id']
+            
+            # Samle info om mappingene
+            mapping_info = "<h4>Mappinger:</h4>"
+            mapping_info += "<p>Innlegg: Original ID → Faktisk ID</p><ul>"
+            for orig_id, actual_id in post_mapping.items():
+                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
+            mapping_info += "</ul>"
+            
+            mapping_info += "<p>Brukere: Original ID → Faktisk ID</p><ul>"
+            for orig_id, actual_id in user_mapping.items():
+                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
+            mapping_info += "</ul>"
+            
+            mapping_info += "<p>Tagger: Original ID → Faktisk ID</p><ul>"
+            for orig_id, actual_id in tag_mapping.items():
+                mapping_info += f"<li>{orig_id} → {actual_id}</li>"
+            mapping_info += "</ul>"
+            
+            # 1. Legg inn kommentarer
+            comments_data = [
+                ('Nydelig bilde! Hvor er dette tatt?', '2023-07-01 19:10:00', 1, 2, None),
+                ('Ser fantastisk ut! Må prøve denne oppskriften.', '2023-07-02 13:05:00', 2, 4, None),
+                ('Python er et flott språk å starte med. Prøv å lage et lite prosjekt!', '2023-07-03 10:30:00', 3, 6, None),
+                ('Colosseum er et must! Og ikke glem å besøke Trastevere for god mat.', '2023-07-04 16:45:00', 4, 7, None),
+                ('Hvilken treningsrutine følger du?', '2023-07-05 08:20:00', 5, 8, None),
+                ('Hvilket band var det?', '2023-07-06 10:35:00', 6, 9, None),
+                ('Det var i Hardanger. Takk!', '2023-07-01 20:00:00', 1, 1, 1),
+                ('Jeg følger et program med fokus på styrketrening 3 ganger i uken.', '2023-07-05 09:15:00', 5, 5, 5),
+                ('Kan du dele oppskriften?', '2023-07-02 14:10:00', 2, 5, 2),
+                ('Arctic Monkeys. De var helt fantastiske live!', '2023-07-06 11:05:00', 6, 10, 6),
+                ('Kunstutstillingen var virkelig inspirerende!', '2023-07-07 15:00:00', 7, 11, None),
+                ('Jeg har lest den! En av årets beste bøker etter min mening.', '2023-07-08 21:20:00', 8, 12, None),
+                ('Hvilken sci-fi film var det?', '2023-07-09 19:30:00', 9, 3, None),
+                ('Gratulerer med ny jobb! Hva skal du jobbe med?', '2023-07-10 09:15:00', 10, 1, None)
+            ]
+            
+            comment_mapping = {}  # For å mappe originale kommentar-IDer til nye
+            comments_inserted = 0
+            comments_failed = 0
+            
+            for i, (content, date, orig_post_id, orig_user_id, _) in enumerate(comments_data):
+                original_comment_id = i + 1
+                
+                try:
+                    actual_post_id = post_mapping.get(orig_post_id)
+                    actual_user_id = user_mapping.get(orig_user_id)
+                    
+                    if actual_post_id and actual_user_id:
+                        # Legg inn kommentar uten forelder-referanse først
+                        new_comment_id = db.execute(
+                            "INSERT INTO KOMMENTARER (innhold, opprettet_dato, innlegg_id, bruker_id, forelder_kommentar_id) "
+                            "VALUES (?, ?, ?, ?, NULL)",
+                            (content, date, actual_post_id, actual_user_id)
+                        )
+                        
+                        comment_mapping[original_comment_id] = new_comment_id
+                        comments_inserted += 1
+                    else:
+                        comments_failed += 1
+                        print(f"Mangler mapping for Post ID {orig_post_id} eller User ID {orig_user_id}")
+                except Exception as e:
+                    comments_failed += 1
+                    print(f"Feil ved innsetting av kommentar: {str(e)}")
+            
+            # Oppdater foreldre-referanser
+            parent_updates = 0
+            for i, (_, _, _, _, parent_id) in enumerate(comments_data):
+                original_comment_id = i + 1
+                
+                if parent_id and parent_id in comment_mapping and original_comment_id in comment_mapping:
+                    try:
+                        db.execute(
+                            "UPDATE KOMMENTARER SET forelder_kommentar_id = ? WHERE kommentar_id = ?",
+                            (comment_mapping[parent_id], comment_mapping[original_comment_id])
+                        )
+                        parent_updates += 1
+                    except Exception as e:
+                        print(f"Feil ved oppdatering av forelder: {str(e)}")
+            
+            # 2. Legg inn reaksjoner
+            reactions_data = [
+                ('like', '2023-07-01 19:05:00', 2, 1, None),
+                ('love', '2023-07-01 19:30:00', 3, 1, None),
+                ('like', '2023-07-02 13:10:00', 5, 2, None),
+                ('like', '2023-07-02 13:45:00', 6, 2, None),
+                ('like', '2023-07-03 10:20:00', 4, 3, None),
+                ('like', '2023-07-03 11:00:00', 5, 3, None),
+                ('like', '2023-07-04 17:00:00', 8, 4, None),
+                ('like', '2023-07-05 08:30:00', 9, 5, None),
+                ('love', '2023-07-06 10:40:00', 11, 6, None),
+                ('like', '2023-07-07 14:50:00', 12, 7, None),
+                ('like', '2023-07-08 21:00:00', 1, 8, None),
+                ('like', '2023-07-09 19:20:00', 2, 9, None),
+                ('like', '2023-07-10 09:10:00', 3, 10, None),
+                ('like', '2023-07-11 16:00:00', 5, 11, None),
+                ('like', '2023-07-01 19:15:00', 4, None, 1),
+                ('like', '2023-07-02 14:00:00', 7, None, 2)
+            ]
+            
+            reactions_inserted = 0
+            reactions_failed = 0
+            
+            for reaction_type, date, orig_user_id, orig_post_id, orig_comment_id in reactions_data:
+                try:
+                    actual_user_id = user_mapping.get(orig_user_id)
+                    actual_post_id = post_mapping.get(orig_post_id) if orig_post_id else None
+                    actual_comment_id = comment_mapping.get(orig_comment_id) if orig_comment_id else None
+                    
+                    if actual_user_id and (actual_post_id or actual_comment_id):
+                        db.execute(
+                            "INSERT INTO REAKSJONER (reaksjon_type, opprettet_dato, bruker_id, innlegg_id, kommentar_id) "
+                            "VALUES (?, ?, ?, ?, ?)",
+                            (reaction_type, date, actual_user_id, actual_post_id, actual_comment_id)
+                        )
+                        reactions_inserted += 1
+                    else:
+                        reactions_failed += 1
+                except Exception as e:
+                    reactions_failed += 1
+                    print(f"Feil ved innsetting av reaksjon: {str(e)}")
+            
+            # 3. Legg inn innlegg-tagger
+            tags_data = [
+                (1, 1),  # natur
+                (2, 2),  # mat
+                (3, 3),  # teknologi
+                (4, 4),  # reise
+                (5, 5),  # trening
+                (6, 6),  # musikk
+                (7, 7),  # kunst
+                (8, 8),  # litteratur
+                (9, 9),  # film
+                (10, 11), # jobb
+                (11, 12), # familie
+                (12, 10), # utdanning
+                (13, 1),  # natur (for kameratestbilde)
+                (13, 7),  # kunst (for kameratestbilde)
+                (14, 10)  # utdanning (for eksamen-innlegget)
+            ]
+            
+            tags_inserted = 0
+            tags_failed = 0
+            
+            for orig_post_id, orig_tag_id in tags_data:
+                try:
+                    actual_post_id = post_mapping.get(orig_post_id)
+                    actual_tag_id = tag_mapping.get(orig_tag_id)
+                    
+                    if actual_post_id and actual_tag_id:
+                        db.execute(
+                            "INSERT INTO INNLEGG_TAGGER (innlegg_id, tag_id) VALUES (?, ?)",
+                            (actual_post_id, actual_tag_id)
+                        )
+                        tags_inserted += 1
+                    else:
+                        tags_failed += 1
+                except Exception as e:
+                    tags_failed += 1
+                    print(f"Feil ved innsetting av innlegg-tag: {str(e)}")
+            
+            # Samle statistikk
+            stats = {
+                'comments': db.fetchone("SELECT COUNT(*) as count FROM KOMMENTARER")['count'],
+                'reactions': db.fetchone("SELECT COUNT(*) as count FROM REAKSJONER")['count'],
+                'post_tags': db.fetchone("SELECT COUNT(*) as count FROM INNLEGG_TAGGER")['count']
+            }
+            
+            return f"""
+            <h2>Alle relasjoner er fikset!</h2>
+            
+            <h3>Kommentarer</h3>
+            <p>Lagt til: {comments_inserted} av {len(comments_data)}</p>
+            <p>Feilet: {comments_failed}</p>
+            <p>Foreldre-referanser oppdatert: {parent_updates}</p>
+            
+            <h3>Reaksjoner</h3>
+            <p>Lagt til: {reactions_inserted} av {len(reactions_data)}</p>
+            <p>Feilet: {reactions_failed}</p>
+            
+            <h3>Innlegg-tagger</h3>
+            <p>Lagt til: {tags_inserted} av {len(tags_data)}</p>
+            <p>Feilet: {tags_failed}</p>
+            
+            <h3>Database status</h3>
+            <p>Antall kommentarer: {stats['comments']}</p>
+            <p>Antall reaksjoner: {stats['reactions']}</p>
+            <p>Antall innlegg-tagger: {stats['post_tags']}</p>
+            
+            {mapping_info}
+            
+            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
+            <p><a href="/">Gå til forsiden</a></p>
+            """
+    except Exception as e:
+        return f"Generell feil ved fiksing av relasjoner: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True)
