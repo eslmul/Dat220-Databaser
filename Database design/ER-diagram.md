@@ -1,5 +1,3 @@
-# ER-diagram for sosial media-plattform
-
 ```mermaid
 erDiagram
     BRUKERE {
@@ -49,15 +47,6 @@ erDiagram
         string status
     }
     
-    MELDINGER {
-        int melding_id PK
-        text innhold
-        datetime sendt_dato
-        datetime lest_dato
-        int avsender_id FK
-        int mottaker_id FK
-    }
-    
     TAGGER {
         int tag_id PK
         string navn
@@ -77,7 +66,5 @@ erDiagram
     KOMMENTARER ||--o{ REAKSJONER : "mottar"
     BRUKERE ||--o{ FØLGER : "følger som følger"
     BRUKERE ||--o{ FØLGER : "følges av som følges"
-    BRUKERE ||--o{ MELDINGER : "sender"
-    BRUKERE ||--o{ MELDINGER : "mottar"
     INNLEGG ||--o{ INNLEGG_TAGGER : "har"
     TAGGER ||--o{ INNLEGG_TAGGER : "tilknyttet til"
