@@ -1,8 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from db_config import Database, init_db, add_sample_data
 from import_sql_sample_data import import_sql_sample_data
-from werkzeug.utils import secure_filename
-import uuid
 import os
 from datetime import datetime
 
@@ -1302,7 +1300,6 @@ def fix_all_relations():
             
             {mapping_info}
             
-            <p><a href="/debug_comments">Se kommentaroversikt</a></p>
             <p><a href="/">Gå til forsiden</a></p>
             """
     except Exception as e:
